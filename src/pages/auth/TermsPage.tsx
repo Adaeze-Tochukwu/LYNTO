@@ -247,7 +247,47 @@ export function TermsPage() {
             </p>
           </Section>
 
-          <Section title="9. Intellectual Property">
+          <Section title="9. Platform Administration and Oversight">
+            <p>
+              The Service is operated by LYNTO GLOBAL LIMITED through authorised
+              platform administrators ("Platform Admins").
+            </p>
+            <p className="mt-3">
+              Platform Admins may access and process limited system-level
+              information for the purposes of operating, maintaining, securing,
+              and supporting the Service. This may include:
+            </p>
+            <ul>
+              <li>Agency names and registration details</li>
+              <li>
+                User account information (such as role, status, and activity
+                timestamps)
+              </li>
+              <li>
+                Aggregated usage metrics (for example, total number of agencies,
+                carers, and clients)
+              </li>
+              <li>
+                System activity logs relating to account creation, activation,
+                deactivation, and access events
+              </li>
+            </ul>
+            <p className="mt-3">
+              Platform Admins do not routinely access or review detailed client
+              visit notes, clinical observations, or health-related content
+              entered by agencies, except where strictly necessary for technical
+              support, legal compliance, security investigations, or where
+              required by law.
+            </p>
+            <p className="mt-3">
+              All access by Platform Admins is subject to appropriate
+              confidentiality obligations, access controls, and data protection
+              safeguards in accordance with applicable data protection
+              legislation, including UK GDPR and the Data Protection Act 2018.
+            </p>
+          </Section>
+
+          <Section title="10. Intellectual Property">
             <p>
               All content, features, functionality, software, text, graphics,
               logos, and trademarks of Lynto are the exclusive property of the
@@ -255,7 +295,7 @@ export function TermsPage() {
             </p>
           </Section>
 
-          <Section title="10. Limitation of Liability">
+          <Section title="11. Limitation of Liability">
             <p className="uppercase text-xs tracking-wide text-slate-500 mb-2">
               Disclaimer
             </p>
@@ -272,7 +312,7 @@ export function TermsPage() {
             </p>
           </Section>
 
-          <Section title="11. Termination">
+          <Section title="12. Termination">
             <p>
               We may suspend or terminate your access for violation of these
               Terms, misuse of the Service, or at the request of your employing
@@ -280,7 +320,7 @@ export function TermsPage() {
             </p>
           </Section>
 
-          <Section title="12. Governing Law">
+          <Section title="13. Governing Law">
             <p>
               These Terms and Conditions shall be governed by and construed in
               accordance with the laws of England and Wales. Nothing in this
@@ -294,7 +334,7 @@ export function TermsPage() {
             </p>
           </Section>
 
-          <Section title="13. Contact">
+          <Section title="14. Contact">
             <p>
               For questions about these Terms and Conditions, please contact
               your agency administrator or reach out to our support team.

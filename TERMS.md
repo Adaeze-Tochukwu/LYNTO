@@ -115,26 +115,41 @@ Users acknowledge that information accessed through the Service includes sensiti
 - Only discuss client information with authorised colleagues on a need-to-know basis
 - Not disclose client information to family members, friends, or other unauthorised parties
 
-## 9. Intellectual Property
+## 9. Platform Administration and Oversight
+
+The Service is operated by LYNTO GLOBAL LIMITED through authorised platform administrators ("Platform Admins").
+
+Platform Admins may access and process limited system-level information for the purposes of operating, maintaining, securing, and supporting the Service. This may include:
+
+- Agency names and registration details
+- User account information (such as role, status, and activity timestamps)
+- Aggregated usage metrics (for example, total number of agencies, carers, and clients)
+- System activity logs relating to account creation, activation, deactivation, and access events
+
+Platform Admins do not routinely access or review detailed client visit notes, clinical observations, or health-related content entered by agencies, except where strictly necessary for technical support, legal compliance, security investigations, or where required by law.
+
+All access by Platform Admins is subject to appropriate confidentiality obligations, access controls, and data protection safeguards in accordance with applicable data protection legislation, including UK GDPR and the Data Protection Act 2018.
+
+## 10. Intellectual Property
 
 All content, features, functionality, software, text, graphics, logos, and trademarks of Lynto are the exclusive property of the Service owner and are protected by intellectual property laws. You are granted a limited, non-exclusive, non-transferable licence to use the Service for its intended purpose. You must not:
 - Copy, modify, or distribute any part of the Service
 - Create derivative works based on the Service
 - Use the Service's branding without written permission
 
-## 10. Service Availability
+## 11. Service Availability
 
-### 10.1 No Guarantee
+### 11.1 No Guarantee
 The Service is provided on an "as is" and "as available" basis. We do not guarantee:
 - Uninterrupted or error-free operation
 - Availability at all times
 - That defects will be corrected
 - That the Service is free of viruses or harmful components
 
-### 10.2 Maintenance
+### 11.2 Maintenance
 We may suspend access to the Service for maintenance, updates, or improvements. We will endeavour to provide advance notice where practicable.
 
-## 11. Limitation of Liability
+## 12. Limitation of Liability
 
 To the maximum extent permitted by law, the Service is provided on an "as is" and "as available" basis without warranties of any kind.
 
@@ -142,7 +157,7 @@ The Service owner shall not be liable for any indirect, incidental, special, con
 
 Nothing in these Terms limits liability for death or personal injury caused by negligence, fraud, or any other liability which cannot be excluded under applicable law.
 
-## 12. Indemnification
+## 13. Indemnification
 
 You agree to indemnify, defend, and hold harmless the Service owner and its officers, directors, employees, and agents from any claims, damages, losses, liabilities, costs, and expenses (including legal fees) arising from:
 - Your use of the Service
@@ -151,16 +166,16 @@ You agree to indemnify, defend, and hold harmless the Service owner and its offi
 - Your breach of data protection obligations
 - Any claim by a third party related to your use of the Service
 
-## 13. Modifications to Terms
+## 14. Modifications to Terms
 
 We reserve the right to modify these Terms at any time. Material changes will be notified to registered users via email or in-app notification. Your continued use of the Service after changes constitutes acceptance of the modified Terms. If you do not agree with any changes, you must stop using the Service.
 
-## 14. Termination
+## 15. Termination
 
-### 14.1 By You
+### 15.1 By You
 You may terminate your account at any time by contacting support. Upon termination, your right to use the Service ceases immediately.
 
-### 14.2 By Us
+### 15.2 By Us
 We may suspend or terminate your access immediately and without notice for:
 - Violation of these Terms
 - Misuse of the Service
@@ -168,25 +183,25 @@ We may suspend or terminate your access immediately and without notice for:
 - Non-payment of applicable fees
 - Any other reason at our reasonable discretion
 
-### 14.3 Effect of Termination
+### 15.3 Effect of Termination
 Upon termination:
 - You must cease all use of the Service
 - We may delete your account data in accordance with our data retention policies
 - Provisions that by their nature should survive will remain in effect
 
-## 15. Governing Law and Disputes
+## 16. Governing Law and Disputes
 
 These Terms shall be governed by and construed in accordance with the laws of England and Wales. Any disputes arising from these Terms or your use of the Service shall be subject to the exclusive jurisdiction of the courts of England and Wales.
 
-## 16. Severability
+## 17. Severability
 
 If any provision of these Terms is found to be unenforceable, the remaining provisions will continue in full force and effect.
 
-## 17. Entire Agreement
+## 18. Entire Agreement
 
 These Terms, together with our Privacy Policy, constitute the entire agreement between you and the Service owner regarding your use of the Service.
 
-## 18. Contact Information
+## 19. Contact Information
 
 For questions about these Terms and Conditions, please contact your agency administrator or reach out to our support team.
 
