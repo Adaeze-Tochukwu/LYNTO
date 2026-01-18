@@ -1,4 +1,4 @@
-import type { Agency, Manager, Carer, Client, VisitEntry, Alert } from '@/types'
+import type { Agency, Manager, Carer, Client, VisitEntry, Alert, PlatformAdmin, AgencyWithStats, ActivityLogEntry } from '@/types'
 
 // Agency
 export const mockAgency: Agency = {
@@ -280,4 +280,250 @@ export function getActiveCarers(agencyId: string) {
 
 export function getActiveClients(agencyId: string) {
   return mockClients.filter((c) => c.agencyId === agencyId && c.status === 'active')
+}
+
+// ============================================
+// PLATFORM ADMIN MOCK DATA
+// ============================================
+
+// Platform Admins
+export const mockPlatformAdmins: PlatformAdmin[] = [
+  {
+    id: 'admin-1',
+    email: 'admin@lynto.com',
+    fullName: 'John Administrator',
+    role: 'admin',
+    adminRole: 'primary_admin',
+    status: 'active',
+    createdAt: '2024-01-01T09:00:00Z',
+    lastLoginAt: '2024-06-15T08:00:00Z',
+  },
+  {
+    id: 'admin-2',
+    email: 'support@lynto.com',
+    fullName: 'Jane Support',
+    role: 'admin',
+    adminRole: 'admin',
+    status: 'active',
+    createdAt: '2024-02-15T10:00:00Z',
+    lastLoginAt: '2024-06-14T14:30:00Z',
+  },
+  {
+    id: 'admin-3',
+    email: 'viewer@lynto.com',
+    fullName: 'Bob Viewer',
+    role: 'admin',
+    adminRole: 'readonly_admin',
+    status: 'inactive',
+    createdAt: '2024-03-01T11:00:00Z',
+    deactivatedAt: '2024-05-01T16:00:00Z',
+    deactivationReason: 'Role change',
+  },
+]
+
+// All Agencies (for admin view)
+export const mockAllAgencies: AgencyWithStats[] = [
+  {
+    id: 'agency-1',
+    name: 'Sunrise Care Services',
+    createdAt: '2024-01-15T09:00:00Z',
+    managerId: 'manager-1',
+    status: 'active',
+    contactEmail: 'sarah.jones@sunrisecare.co.uk',
+    contactName: 'Sarah Jones',
+    totalCarers: 3,
+    activeCarers: 2,
+    totalClients: 5,
+    activeClients: 4,
+    totalAlerts: 4,
+    unreviewedAlerts: 2,
+    lastActivityAt: '2024-06-15T08:30:00Z',
+  },
+  {
+    id: 'agency-2',
+    name: 'Hope Homecare Ltd',
+    createdAt: '2024-02-20T10:00:00Z',
+    managerId: 'manager-2',
+    status: 'active',
+    contactEmail: 'mark.wilson@hopehomecare.co.uk',
+    contactName: 'Mark Wilson',
+    totalCarers: 5,
+    activeCarers: 4,
+    totalClients: 12,
+    activeClients: 10,
+    totalAlerts: 8,
+    unreviewedAlerts: 1,
+    lastActivityAt: '2024-06-14T16:45:00Z',
+  },
+  {
+    id: 'agency-3',
+    name: 'Comfort Care Solutions',
+    createdAt: '2024-03-10T14:00:00Z',
+    managerId: 'manager-3',
+    status: 'active',
+    contactEmail: 'lisa.brown@comfortcare.co.uk',
+    contactName: 'Lisa Brown',
+    totalCarers: 8,
+    activeCarers: 7,
+    totalClients: 20,
+    activeClients: 18,
+    totalAlerts: 15,
+    unreviewedAlerts: 3,
+    lastActivityAt: '2024-06-15T09:15:00Z',
+  },
+  {
+    id: 'agency-4',
+    name: 'Gentle Hands Care',
+    createdAt: '2024-04-05T11:00:00Z',
+    managerId: 'manager-4',
+    status: 'suspended',
+    contactEmail: 'peter.smith@gentlehands.co.uk',
+    contactName: 'Peter Smith',
+    totalCarers: 2,
+    activeCarers: 0,
+    totalClients: 6,
+    activeClients: 0,
+    totalAlerts: 3,
+    unreviewedAlerts: 0,
+    lastActivityAt: '2024-05-20T10:00:00Z',
+    notes: 'Suspended due to non-payment',
+  },
+  {
+    id: 'agency-5',
+    name: 'Caring Hearts Agency',
+    createdAt: '2024-05-01T09:00:00Z',
+    managerId: 'manager-5',
+    status: 'inactive',
+    contactEmail: 'emma.davis@caringhearts.co.uk',
+    contactName: 'Emma Davis',
+    totalCarers: 4,
+    activeCarers: 0,
+    totalClients: 8,
+    activeClients: 0,
+    totalAlerts: 5,
+    unreviewedAlerts: 0,
+    lastActivityAt: '2024-05-15T14:30:00Z',
+    notes: 'Agency closed operations',
+  },
+]
+
+// Activity Log
+export const mockActivityLog: ActivityLogEntry[] = [
+  {
+    id: 'log-1',
+    eventType: 'admin_login',
+    performedBy: 'admin-1',
+    performedByName: 'John Administrator',
+    timestamp: '2024-06-15T08:00:00Z',
+  },
+  {
+    id: 'log-2',
+    eventType: 'carer_created',
+    agencyId: 'agency-3',
+    agencyName: 'Comfort Care Solutions',
+    entityId: 'carer-new',
+    entityName: 'New Carer',
+    performedBy: 'manager-3',
+    performedByName: 'Lisa Brown',
+    timestamp: '2024-06-15T09:15:00Z',
+  },
+  {
+    id: 'log-3',
+    eventType: 'client_created',
+    agencyId: 'agency-2',
+    agencyName: 'Hope Homecare Ltd',
+    entityId: 'client-new',
+    entityName: 'New Client',
+    performedBy: 'manager-2',
+    performedByName: 'Mark Wilson',
+    timestamp: '2024-06-14T16:45:00Z',
+  },
+  {
+    id: 'log-4',
+    eventType: 'agency_status_changed',
+    agencyId: 'agency-4',
+    agencyName: 'Gentle Hands Care',
+    performedBy: 'admin-1',
+    performedByName: 'John Administrator',
+    reason: 'Suspended due to non-payment',
+    timestamp: '2024-05-20T10:00:00Z',
+  },
+  {
+    id: 'log-5',
+    eventType: 'carer_deactivated',
+    agencyId: 'agency-1',
+    agencyName: 'Sunrise Care Services',
+    entityId: 'carer-3',
+    entityName: 'Lisa Brown',
+    performedBy: 'manager-1',
+    performedByName: 'Sarah Jones',
+    reason: 'Left organisation',
+    timestamp: '2024-06-15T16:00:00Z',
+  },
+  {
+    id: 'log-6',
+    eventType: 'admin_deactivated',
+    entityId: 'admin-3',
+    entityName: 'Bob Viewer',
+    performedBy: 'admin-1',
+    performedByName: 'John Administrator',
+    reason: 'Role change',
+    timestamp: '2024-05-01T16:00:00Z',
+  },
+  {
+    id: 'log-7',
+    eventType: 'agency_created',
+    agencyId: 'agency-5',
+    agencyName: 'Caring Hearts Agency',
+    performedBy: 'admin-2',
+    performedByName: 'Jane Support',
+    timestamp: '2024-05-01T09:00:00Z',
+  },
+  {
+    id: 'log-8',
+    eventType: 'client_deactivated',
+    agencyId: 'agency-1',
+    agencyName: 'Sunrise Care Services',
+    entityId: 'client-5',
+    entityName: 'Elizabeth S.',
+    performedBy: 'manager-1',
+    performedByName: 'Sarah Jones',
+    reason: 'Moved to another provider',
+    timestamp: '2024-05-20T15:00:00Z',
+  },
+]
+
+// Admin helper functions
+export function getAdminById(id: string) {
+  return mockPlatformAdmins.find((a) => a.id === id)
+}
+
+export function getAgencyById(id: string) {
+  return mockAllAgencies.find((a) => a.id === id)
+}
+
+export function getGlobalStats() {
+  const totalAgencies = mockAllAgencies.length
+  const activeAgencies = mockAllAgencies.filter((a) => a.status === 'active').length
+  const totalCarers = mockAllAgencies.reduce((sum, a) => sum + a.totalCarers, 0)
+  const activeCarers = mockAllAgencies.reduce((sum, a) => sum + a.activeCarers, 0)
+  const totalClients = mockAllAgencies.reduce((sum, a) => sum + a.totalClients, 0)
+  const activeClients = mockAllAgencies.reduce((sum, a) => sum + a.activeClients, 0)
+  const totalAlerts = mockAllAgencies.reduce((sum, a) => sum + a.totalAlerts, 0)
+  const unreviewedAlerts = mockAllAgencies.reduce((sum, a) => sum + a.unreviewedAlerts, 0)
+
+  return {
+    totalAgencies,
+    activeAgencies,
+    inactiveAgencies: totalAgencies - activeAgencies,
+    totalCarers,
+    activeCarers,
+    inactiveCarers: totalCarers - activeCarers,
+    totalClients,
+    activeClients,
+    inactiveClients: totalClients - activeClients,
+    totalAlerts,
+    unreviewedAlerts,
+    reviewedAlerts: totalAlerts - unreviewedAlerts,
+  }
 }

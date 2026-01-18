@@ -1,0 +1,311 @@
+PART C — PLATFORM ADMIN USE CASES (Additional Use Cases)
+=========================================================
+
+Add the following use cases after UC-A11 in your document:
+
+---
+
+UC-A12: Primary Admin reactivates a deactivated Platform Admin
+
+Actor: Primary Platform Admin
+
+Preconditions:
+- A Primary Platform Admin account exists.
+- One or more Platform Admin accounts have been deactivated.
+- The acting Admin is logged into the Admin Portal with Primary Admin privileges.
+
+Main Flow:
+1. The Primary Admin opens the "Admins" section in the Admin Portal.
+2. The system displays all Platform Admin accounts, including those with Inactive status.
+3. The Primary Admin selects an Inactive Admin account.
+4. The Primary Admin clicks "Reactivate Admin".
+5. The system prompts the Primary Admin to confirm the action and optionally enter a reason for reactivation.
+6. The Primary Admin confirms.
+
+System Behaviour:
+- The selected Admin account is marked as Active.
+- The reactivated Admin can now log into the Admin Portal.
+- The reactivation event, timestamp, acting Primary Admin, and reason are recorded in the platform activity log.
+
+Postconditions:
+- The Admin account is active and can access the Admin Portal according to their assigned role.
+
+---
+
+UC-A13: Primary Admin transfers Primary Admin role
+
+Actor: Primary Platform Admin
+
+Preconditions:
+- A Primary Platform Admin account exists.
+- At least one other Active Platform Admin account exists.
+- The acting Admin is logged into the Admin Portal with Primary Admin privileges.
+
+Main Flow:
+1. The Primary Admin opens the "Admins" section.
+2. The Primary Admin selects an Active Admin account.
+3. The Primary Admin clicks "Transfer Primary Role".
+4. The system displays a confirmation warning:
+   - "You are about to transfer Primary Admin privileges to [Admin Name]. You will retain Admin access but will no longer be able to manage other Admin accounts. This action cannot be undone without the new Primary Admin's approval."
+5. The Primary Admin confirms by entering their password.
+6. The system prompts for a reason for the transfer.
+
+System Behaviour:
+- The selected Admin account is promoted to Primary Admin.
+- The previous Primary Admin is demoted to standard Admin (retains login and view access).
+- The transfer event, timestamp, both parties, and reason are recorded in the platform activity log.
+- Both Admins receive an email notification of the role change.
+
+Postconditions:
+- The new Primary Admin has full platform administration privileges.
+- The former Primary Admin retains Admin access but cannot manage other Admin accounts.
+
+---
+
+UC-A14: Admin views and updates their own profile
+
+Actor: Platform Admin
+
+Preconditions:
+- Admin is logged into the Admin Portal.
+
+Main Flow:
+1. Admin clicks on their profile icon or "My Profile" in the navigation.
+2. The system displays the Admin's profile:
+   - Full name
+   - Email address
+   - Role (Primary Admin / Admin / Read-only Admin)
+   - Account created date
+   - Last login timestamp
+3. Admin can update:
+   - Full name
+4. Admin clicks "Save Changes".
+
+System Behaviour:
+- Profile updates are saved.
+- The update event is recorded in the activity log.
+- Email address changes are not permitted via this flow (require separate verification process).
+
+Postconditions:
+- Admin profile is updated.
+
+---
+
+UC-A15: Admin changes their password
+
+Actor: Platform Admin
+
+Preconditions:
+- Admin is logged into the Admin Portal.
+
+Main Flow:
+1. Admin opens "My Profile" or "Security Settings".
+2. Admin clicks "Change Password".
+3. The system prompts for:
+   - Current password
+   - New password
+   - Confirm new password
+4. Admin enters values and clicks "Update Password".
+
+System Behaviour:
+- System validates current password.
+- System enforces password requirements (minimum 8 characters, etc.).
+- Password is updated.
+- All other active sessions for this Admin are invalidated.
+- The password change event is recorded in the activity log (without storing the password).
+- Admin receives an email notification of the password change.
+
+Postconditions:
+- Admin must use the new password for future logins.
+
+---
+
+UC-A16: Admin requests password reset (forgot password)
+
+Actor: Platform Admin (logged out)
+
+Preconditions:
+- Admin account exists.
+- Admin has forgotten their password.
+
+Main Flow:
+1. Admin opens the Admin Portal login page.
+2. Admin clicks "Forgot Password".
+3. Admin enters their registered email address.
+4. Admin clicks "Send Reset Link".
+5. The system sends a secure, time-limited password reset link to the email.
+6. Admin opens the email and clicks the reset link.
+7. The system prompts for:
+   - New password
+   - Confirm new password
+8. Admin sets the new password and clicks "Reset Password".
+
+System Behaviour:
+- Reset link expires after 1 hour.
+- Reset link can only be used once.
+- After successful reset, all active sessions are invalidated.
+- The password reset event is recorded in the activity log.
+
+Postconditions:
+- Admin can log in with the new password.
+
+---
+
+UC-A17: Admin logs out of the system
+
+Actor: Platform Admin
+
+Preconditions:
+- Admin is logged into the Admin Portal.
+
+Main Flow:
+1. Admin clicks "Log Out" in the navigation or profile menu.
+2. The system ends the session.
+3. Admin is redirected to the login page.
+
+System Behaviour:
+- Session token is invalidated.
+- Logout event is recorded in the activity log.
+
+Postconditions:
+- Admin must re-authenticate to access the Admin Portal.
+
+---
+
+UC-A18: Admin performs global search
+
+Actor: Platform Admin
+
+Preconditions:
+- Admin is logged into the Admin Portal.
+
+Main Flow:
+1. Admin clicks the global search bar or icon.
+2. Admin enters a search term (e.g., agency name, carer email, client display name).
+3. The system searches across:
+   - Agency names
+   - Carer names and emails
+   - Client display names
+4. Results are displayed grouped by entity type:
+   - Agencies (X results)
+   - Carers (Y results)
+   - Clients (Z results)
+5. Admin clicks on a result to navigate to that entity's detail page.
+
+System Behaviour:
+- Search is performed across all agencies.
+- Results show entity name, parent agency, and status.
+- Search does not include clinical data (visit entries, symptoms, notes).
+
+Postconditions:
+- Admin can quickly locate any entity in the system.
+
+---
+
+UC-A19: Admin views platform-wide alert metrics
+
+Actor: Platform Admin
+
+Preconditions:
+- Admin is logged into the Admin Portal.
+- Agencies are actively using the system.
+
+Main Flow:
+1. Admin opens "Alert Metrics" or views the dashboard metrics section.
+2. The system displays aggregate alert statistics:
+   - Total alerts generated (all time / last 30 days / last 7 days)
+   - Alerts by risk level:
+     - Amber: X
+     - Red: Y
+   - Alerts by review status:
+     - Unreviewed: X
+     - Reviewed: Y
+   - Breakdown by agency (table):
+     - Agency name | Total alerts | Unreviewed | Amber | Red
+3. Admin can filter by date range.
+
+System Behaviour:
+- Only aggregate counts are shown.
+- No clinical details (symptoms, notes, client identifiers) are displayed.
+- Data is read-only.
+
+Postconditions:
+- Admin has visibility into platform health and agency activity levels without accessing protected health information.
+
+---
+
+UC-A20: Admin updates agency contact details
+
+Actor: Platform Admin
+
+Preconditions:
+- Agency exists in the system.
+
+Main Flow:
+1. Admin opens the agency detail page (UC-A3).
+2. Admin clicks "Edit Agency Details".
+3. Admin can update:
+   - Agency name
+   - Primary contact name
+   - Primary contact email
+   - Internal notes
+4. Admin clicks "Save Changes".
+
+System Behaviour:
+- Changes are saved.
+- The update event is recorded in the agency's activity log with:
+   - Field changed
+   - Old value
+   - New value
+   - Timestamp
+   - Admin who made the change
+
+Postconditions:
+- Agency details are updated.
+- Audit trail is preserved.
+
+---
+
+UC-A21: Admin views Admin audit log
+
+Actor: Platform Admin
+
+Preconditions:
+- Admin is logged into the Admin Portal.
+
+Main Flow:
+1. Admin opens "Admin Audit Log" in the Admin Portal.
+2. The system displays a chronological list of all Admin actions:
+   - 2026-02-10 09:21 – [Admin Name] logged in
+   - 2026-02-10 09:25 – [Admin Name] deactivated Agency "Hope Care"
+   - 2026-02-10 09:30 – [Admin Name] invited new Admin: jane@lynto.com
+   - 2026-02-09 14:02 – [Primary Admin] deactivated Admin: john@lynto.com
+3. Admin can filter by:
+   - Admin name
+   - Action type
+   - Date range
+
+System Behaviour:
+- All Admin Portal actions are logged.
+- Log entries cannot be edited or deleted.
+
+Postconditions:
+- Full traceability of Admin actions for compliance and security audits.
+
+---
+
+End of PART C — PLATFORM ADMIN USE CASES
+
+---
+
+SUMMARY OF ADDED USE CASES:
+- UC-A12: Primary Admin reactivates a deactivated Platform Admin
+- UC-A13: Primary Admin transfers Primary Admin role
+- UC-A14: Admin views and updates their own profile
+- UC-A15: Admin changes their password
+- UC-A16: Admin requests password reset (forgot password)
+- UC-A17: Admin logs out of the system
+- UC-A18: Admin performs global search
+- UC-A19: Admin views platform-wide alert metrics
+- UC-A20: Admin updates agency contact details
+- UC-A21: Admin views Admin audit log

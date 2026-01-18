@@ -5,16 +5,20 @@ import {
   useCallback,
   type ReactNode,
 } from 'react'
-import type { User, Manager, Carer, Agency } from '@/types'
-import { mockManager, mockCarers, mockAgency } from '@/data/mockData'
+import type { User, Manager, Carer, Agency, PlatformAdmin } from '@/types'
+import { mockManager, mockCarers, mockAgency, mockPlatformAdmins } from '@/data/mockData'
 
 interface AuthContextType {
   user: User | null
+  admin: PlatformAdmin | null
   agency: Agency | null
   isAuthenticated: boolean
   isManager: boolean
   isCarer: boolean
+  isAdmin: boolean
+  isPrimaryAdmin: boolean
   login: (email: string, password: string) => Promise<boolean>
+  adminLogin: (email: string, password: string) => Promise<boolean>
   logout: () => void
   registerAgency: (agencyName: string, fullName: string, email: string, password: string) => Promise<boolean>
 }
@@ -23,6 +27,7 @@ const AuthContext = createContext<AuthContextType | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [admin, setAdmin] = useState<PlatformAdmin | null>(null)
   const [agency, setAgency] = useState<Agency | null>(null)
 
   const login = useCallback(async (email: string, _password: string): Promise<boolean> => {
@@ -33,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (email.toLowerCase() === mockManager.email.toLowerCase()) {
       setUser(mockManager)
       setAgency(mockAgency)
+      setAdmin(null)
       return true
     }
 
@@ -43,6 +49,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (carer) {
       setUser(carer)
       setAgency(mockAgency)
+      setAdmin(null)
+      return true
+    }
+
+    return false
+  }, [])
+
+  const adminLogin = useCallback(async (email: string, _password: string): Promise<boolean> => {
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    // Check if admin
+    const adminUser = mockPlatformAdmins.find(
+      (a) => a.email.toLowerCase() === email.toLowerCase() && a.status === 'active'
+    )
+    if (adminUser) {
+      setAdmin(adminUser)
+      setUser(null)
+      setAgency(null)
       return true
     }
 
@@ -51,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     setUser(null)
+    setAdmin(null)
     setAgency(null)
   }, [])
 
@@ -84,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUser(newManager)
       setAgency(newAgency)
+      setAdmin(null)
       return true
     },
     []
@@ -91,11 +118,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value: AuthContextType = {
     user,
+    admin,
     agency,
-    isAuthenticated: !!user,
+    isAuthenticated: !!user || !!admin,
     isManager: user?.role === 'manager',
     isCarer: user?.role === 'carer',
+    isAdmin: !!admin,
+    isPrimaryAdmin: admin?.adminRole === 'primary_admin',
     login,
+    adminLogin,
     logout,
     registerAgency,
   }
@@ -120,4 +151,9 @@ export function useManager(): Manager | null {
 export function useCarer(): Carer | null {
   const { user, isCarer } = useAuth()
   return isCarer ? (user as Carer) : null
+}
+
+export function useAdmin(): PlatformAdmin | null {
+  const { admin, isAdmin } = useAuth()
+  return isAdmin ? admin : null
 }

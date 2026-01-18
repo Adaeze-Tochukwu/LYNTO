@@ -1,6 +1,7 @@
 // User types
-export type UserRole = 'manager' | 'carer'
-export type UserStatus = 'active' | 'inactive' | 'pending'
+export type UserRole = 'manager' | 'carer' | 'admin'
+export type UserStatus = 'active' | 'inactive' | 'pending' | 'suspended'
+export type AdminRole = 'primary_admin' | 'admin' | 'readonly_admin'
 
 export interface User {
   id: string
@@ -138,4 +139,65 @@ export interface VisitFormState {
   selectedSymptoms: Set<string>
   vitals: Vitals
   note: string
+}
+
+// Platform Admin types
+export interface PlatformAdmin {
+  id: string
+  email: string
+  fullName: string
+  role: 'admin'
+  adminRole: AdminRole
+  status: UserStatus
+  createdAt: string
+  lastLoginAt?: string
+  deactivatedAt?: string
+  deactivationReason?: string
+}
+
+// Agency status for admin view
+export type AgencyStatus = 'active' | 'inactive' | 'suspended' | 'pending'
+
+// Extended Agency for admin view
+export interface AgencyWithStats extends Agency {
+  status: AgencyStatus
+  contactEmail: string
+  contactName: string
+  totalCarers: number
+  activeCarers: number
+  totalClients: number
+  activeClients: number
+  totalAlerts: number
+  unreviewedAlerts: number
+  lastActivityAt?: string
+  notes?: string
+}
+
+// Activity log types
+export type ActivityEventType =
+  | 'agency_created'
+  | 'agency_status_changed'
+  | 'carer_created'
+  | 'carer_deactivated'
+  | 'carer_reactivated'
+  | 'client_created'
+  | 'client_deactivated'
+  | 'client_reactivated'
+  | 'admin_created'
+  | 'admin_deactivated'
+  | 'admin_reactivated'
+  | 'admin_login'
+  | 'admin_logout'
+
+export interface ActivityLogEntry {
+  id: string
+  eventType: ActivityEventType
+  agencyId?: string
+  agencyName?: string
+  entityId?: string
+  entityName?: string
+  performedBy: string
+  performedByName: string
+  reason?: string
+  timestamp: string
 }

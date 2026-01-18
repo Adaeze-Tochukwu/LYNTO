@@ -23,26 +23,52 @@ import { CarerHistoryPage } from '@/pages/carer/CarerHistoryPage'
 import { VisitEntryPage } from '@/pages/carer/VisitEntryPage'
 import { EntryDetailPage } from '@/pages/carer/EntryDetailPage'
 
+// Admin pages
+import {
+  AdminLoginPage,
+  AdminDashboard,
+  AgenciesPage,
+  AgencyDetailPage,
+  AdminsPage,
+  ActivityLogPage,
+} from '@/pages/admin'
+
 // Protected route component
 function ProtectedRoute({
   children,
   allowedRole,
 }: {
   children: React.ReactNode
-  allowedRole?: 'manager' | 'carer'
+  allowedRole?: 'manager' | 'carer' | 'admin'
 }) {
-  const { isAuthenticated, isManager, isCarer } = useAuth()
+  const { isAuthenticated, isManager, isCarer, isAdmin } = useAuth()
 
   if (!isAuthenticated) {
+    if (allowedRole === 'admin') {
+      return <Navigate to="/admin/login" replace />
+    }
     return <Navigate to="/login" replace />
   }
 
   if (allowedRole === 'manager' && !isManager) {
+    if (isAdmin) {
+      return <Navigate to="/admin" replace />
+    }
     return <Navigate to="/carer" replace />
   }
 
   if (allowedRole === 'carer' && !isCarer) {
+    if (isAdmin) {
+      return <Navigate to="/admin" replace />
+    }
     return <Navigate to="/manager" replace />
+  }
+
+  if (allowedRole === 'admin' && !isAdmin) {
+    if (isManager) {
+      return <Navigate to="/manager" replace />
+    }
+    return <Navigate to="/carer" replace />
   }
 
   return <>{children}</>
@@ -50,10 +76,24 @@ function ProtectedRoute({
 
 // Auth route - redirect if already logged in
 function AuthRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isManager } = useAuth()
+  const { isAuthenticated, isManager, isAdmin } = useAuth()
 
   if (isAuthenticated) {
+    if (isAdmin) {
+      return <Navigate to="/admin" replace />
+    }
     return <Navigate to={isManager ? '/manager' : '/carer'} replace />
+  }
+
+  return <>{children}</>
+}
+
+// Admin Auth route - redirect if already logged in as admin
+function AdminAuthRoute({ children }: { children: React.ReactNode }) {
+  const { isAdmin } = useAuth()
+
+  if (isAdmin) {
+    return <Navigate to="/admin" replace />
   }
 
   return <>{children}</>
@@ -80,6 +120,58 @@ function AppRoutes() {
         }
       />
       <Route path="/terms" element={<TermsPage />} />
+
+      {/* Admin Auth routes */}
+      <Route
+        path="/admin/login"
+        element={
+          <AdminAuthRoute>
+            <AdminLoginPage />
+          </AdminAuthRoute>
+        }
+      />
+
+      {/* Admin routes */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute allowedRole="admin">
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/agencies"
+        element={
+          <ProtectedRoute allowedRole="admin">
+            <AgenciesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/agencies/:id"
+        element={
+          <ProtectedRoute allowedRole="admin">
+            <AgencyDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/admins"
+        element={
+          <ProtectedRoute allowedRole="admin">
+            <AdminsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/activity"
+        element={
+          <ProtectedRoute allowedRole="admin">
+            <ActivityLogPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Manager routes */}
       <Route
