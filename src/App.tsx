@@ -6,6 +6,7 @@ import { AdminProvider } from '@/context/AdminContext'
 // Auth pages
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegisterPage } from '@/pages/auth/RegisterPage'
+import { SetPasswordPage } from '@/pages/auth/SetPasswordPage'
 import { TermsPage } from '@/pages/auth/TermsPage'
 
 // Manager pages
@@ -34,6 +35,18 @@ import {
   ActivityLogPage,
 } from '@/pages/admin'
 
+// Loading spinner
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="text-center">
+        <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-slate-500 text-sm">Loading...</p>
+      </div>
+    </div>
+  )
+}
+
 // Protected route component
 function ProtectedRoute({
   children,
@@ -42,7 +55,9 @@ function ProtectedRoute({
   children: React.ReactNode
   allowedRole?: 'manager' | 'carer' | 'admin'
 }) {
-  const { isAuthenticated, isManager, isCarer, isAdmin } = useAuth()
+  const { isAuthenticated, isManager, isCarer, isAdmin, isLoading } = useAuth()
+
+  if (isLoading) return <LoadingScreen />
 
   if (!isAuthenticated) {
     if (allowedRole === 'admin') {
@@ -77,7 +92,9 @@ function ProtectedRoute({
 
 // Auth route - redirect if already logged in
 function AuthRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isManager, isAdmin } = useAuth()
+  const { isAuthenticated, isManager, isAdmin, isLoading } = useAuth()
+
+  if (isLoading) return <LoadingScreen />
 
   if (isAuthenticated) {
     if (isAdmin) {
@@ -91,7 +108,9 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
 
 // Admin Auth route - redirect if already logged in as admin
 function AdminAuthRoute({ children }: { children: React.ReactNode }) {
-  const { isAdmin } = useAuth()
+  const { isAdmin, isLoading } = useAuth()
+
+  if (isLoading) return <LoadingScreen />
 
   if (isAdmin) {
     return <Navigate to="/admin" replace />
@@ -100,11 +119,13 @@ function AdminAuthRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-// Admin route wrapper that includes AdminProvider
+// Wrapper that adds AdminProvider for admin routes
 function AdminRoute({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute allowedRole="admin">
-      <AdminProvider>{children}</AdminProvider>
+      <AdminProvider>
+        {children}
+      </AdminProvider>
     </ProtectedRoute>
   )
 }
@@ -130,6 +151,7 @@ function AppRoutes() {
         }
       />
       <Route path="/terms" element={<TermsPage />} />
+      <Route path="/set-password" element={<SetPasswordPage />} />
 
       {/* Admin Auth routes */}
       <Route
@@ -141,7 +163,7 @@ function AppRoutes() {
         }
       />
 
-      {/* Admin routes */}
+      {/* Admin routes (wrapped with AdminProvider) */}
       <Route
         path="/admin"
         element={

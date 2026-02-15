@@ -50,18 +50,26 @@ export function CarerDetailPage() {
     (c) => c.status === 'active' && !carer.assignedClientIds.includes(c.id)
   )
 
-  const handleDeactivate = () => {
+  const handleDeactivate = async () => {
     if (!deactivationReason) return
-    deactivateCarer(carer.id, deactivationReason as CarerDeactivationReason)
-    setShowDeactivateModal(false)
-    navigate('/manager/carers')
+    try {
+      await deactivateCarer(carer.id, deactivationReason as CarerDeactivationReason)
+      setShowDeactivateModal(false)
+      navigate('/manager/carers')
+    } catch (err) {
+      console.error('Failed to deactivate carer:', err)
+    }
   }
 
-  const handleAssign = () => {
+  const handleAssign = async () => {
     if (!selectedClientId) return
-    assignCarerToClient(selectedClientId, carer.id)
-    setSelectedClientId('')
-    setShowAssignModal(false)
+    try {
+      await assignCarerToClient(selectedClientId, carer.id)
+      setSelectedClientId('')
+      setShowAssignModal(false)
+    } catch (err) {
+      console.error('Failed to assign client:', err)
+    }
   }
 
   const getStatusBadge = (status: string) => {

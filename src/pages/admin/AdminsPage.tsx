@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Card, Button, Badge } from '@/components/ui'
+import { Card, Button, Badge, Input } from '@/components/ui'
 import { useAdmin, useAuth } from '@/context/AuthContext'
 import { useAdminData } from '@/context/AdminContext'
 import {
@@ -12,15 +12,20 @@ import {
   Eye,
   Mail,
   Calendar,
-  Loader2,
 } from 'lucide-react'
 import type { AdminRole, UserStatus } from '@/types'
 
 export function AdminsPage() {
   const admin = useAdmin()
   const { logout, isPrimaryAdmin } = useAuth()
-  const { admins, isLoading } = useAdminData()
+  const { admins, inviteAdmin, updateAdminStatus, isLoading } = useAdminData()
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteName, setInviteName] = useState('')
+  const [inviteRole, setInviteRole] = useState<AdminRole>('admin')
+  const [inviting, setInviting] = useState(false)
+  const [inviteSuccess, setInviteSuccess] = useState(false)
+  const [inviteError, setInviteError] = useState('')
 
   const getStatusBadge = (status: UserStatus) => {
     switch (status) {
@@ -28,6 +33,8 @@ export function AdminsPage() {
         return <Badge variant="success">Active</Badge>
       case 'inactive':
         return <Badge variant="secondary">Inactive</Badge>
+      case 'pending':
+        return <Badge variant="warning">Pending</Badge>
       default:
         return <Badge>{status}</Badge>
     }
@@ -82,8 +89,53 @@ export function AdminsPage() {
     })
   }
 
-  const activeAdmins = admins.filter((a) => a.status === 'active')
+  const handleInvite = async () => {
+    if (!inviteEmail.trim() || !inviteName.trim()) return
+    setInviting(true)
+    setInviteError('')
+    try {
+      await inviteAdmin(inviteEmail.trim(), inviteName.trim(), inviteRole)
+      setInviteSuccess(true)
+      setTimeout(() => {
+        setShowInviteModal(false)
+        setInviteEmail('')
+        setInviteName('')
+        setInviteRole('admin')
+        setInviteSuccess(false)
+      }, 2000)
+    } catch (err) {
+      setInviteError(err instanceof Error ? err.message : 'Failed to invite admin')
+    } finally {
+      setInviting(false)
+    }
+  }
+
+  const handleDeactivate = async (adminId: string) => {
+    try {
+      await updateAdminStatus(adminId, 'inactive', 'Deactivated by primary admin')
+    } catch (err) {
+      console.error('Failed to deactivate admin:', err)
+    }
+  }
+
+  const handleReactivate = async (adminId: string) => {
+    try {
+      await updateAdminStatus(adminId, 'active')
+    } catch (err) {
+      console.error('Failed to reactivate admin:', err)
+    }
+  }
+
+  const activeAdmins = admins.filter((a) => a.status === 'active' || a.status === 'pending')
   const inactiveAdmins = admins.filter((a) => a.status === 'inactive')
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -158,157 +210,194 @@ export function AdminsPage() {
           )}
         </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-          </div>
-        ) : (
-          <>
-            {/* Active Admins */}
-            <div className="mb-8">
-              <h3 className="text-sm font-medium text-slate-400 mb-3">
-                Active ({activeAdmins.length})
-              </h3>
-              <div className="space-y-3">
-                {activeAdmins.map((adminUser) => (
-                  <Card
-                    key={adminUser.id}
-                    className="bg-slate-800 border-slate-700 p-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-indigo-500/20 flex items-center justify-center">
-                          {adminUser.adminRole === 'primary_admin' ? (
-                            <Crown className="w-6 h-6 text-amber-400" />
-                          ) : (
-                            <Shield className="w-6 h-6 text-indigo-400" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-white">
-                              {adminUser.fullName}
-                            </h3>
-                            {getRoleBadge(adminUser.adminRole)}
-                            {getStatusBadge(adminUser.status)}
-                          </div>
-                          <div className="flex items-center gap-4 mt-1 text-sm text-slate-400">
-                            <span className="flex items-center gap-1">
-                              <Mail className="w-3 h-3" />
-                              {adminUser.email}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              Joined {formatDate(adminUser.createdAt)}
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-500 mt-1">
-                            Last login: {formatDateTime(adminUser.lastLoginAt)}
-                          </p>
-                        </div>
-                      </div>
-
-                      {isPrimaryAdmin && adminUser.adminRole !== 'primary_admin' && (
-                        <div className="flex gap-2">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="bg-slate-700 hover:bg-slate-600 text-white border-slate-600"
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="bg-red-600/20 hover:bg-red-600/30 text-red-400 border-red-600/30"
-                          >
-                            Deactivate
-                          </Button>
-                        </div>
+        {/* Active Admins */}
+        <div className="mb-8">
+          <h3 className="text-sm font-medium text-slate-400 mb-3">
+            Active ({activeAdmins.length})
+          </h3>
+          <div className="space-y-3">
+            {activeAdmins.map((adminUser) => (
+              <Card
+                key={adminUser.id}
+                className="bg-slate-800 border-slate-700 p-4"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-indigo-500/20 flex items-center justify-center">
+                      {adminUser.adminRole === 'primary_admin' ? (
+                        <Crown className="w-6 h-6 text-amber-400" />
+                      ) : (
+                        <Shield className="w-6 h-6 text-indigo-400" />
                       )}
                     </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-white">
+                          {adminUser.fullName}
+                        </h3>
+                        {getRoleBadge(adminUser.adminRole)}
+                        {getStatusBadge(adminUser.status)}
+                      </div>
+                      <div className="flex items-center gap-4 mt-1 text-sm text-slate-400">
+                        <span className="flex items-center gap-1">
+                          <Mail className="w-3 h-3" />
+                          {adminUser.email}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          Joined {formatDate(adminUser.createdAt)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Last login: {formatDateTime(adminUser.lastLoginAt)}
+                      </p>
+                    </div>
+                  </div>
 
-            {/* Inactive Admins */}
-            {inactiveAdmins.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium text-slate-400 mb-3">
-                  Inactive ({inactiveAdmins.length})
-                </h3>
-                <div className="space-y-3">
-                  {inactiveAdmins.map((adminUser) => (
-                    <Card
-                      key={adminUser.id}
-                      className="bg-slate-800/50 border-slate-700 p-4 opacity-75"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-slate-700 flex items-center justify-center">
-                            <Shield className="w-6 h-6 text-slate-500" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold text-slate-300">
-                                {adminUser.fullName}
-                              </h3>
-                              {getRoleBadge(adminUser.adminRole)}
-                              {getStatusBadge(adminUser.status)}
-                            </div>
-                            <div className="flex items-center gap-4 mt-1 text-sm text-slate-500">
-                              <span className="flex items-center gap-1">
-                                <Mail className="w-3 h-3" />
-                                {adminUser.email}
-                              </span>
-                            </div>
-                            {adminUser.deactivationReason && (
-                              <p className="text-xs text-slate-500 mt-1">
-                                Deactivated: {adminUser.deactivationReason} on{' '}
-                                {formatDate(adminUser.deactivatedAt || '')}
-                              </p>
-                            )}
-                          </div>
+                  {isPrimaryAdmin && adminUser.adminRole !== 'primary_admin' && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="bg-red-600/20 hover:bg-red-600/30 text-red-400 border-red-600/30"
+                        onClick={() => handleDeactivate(adminUser.id)}
+                      >
+                        Deactivate
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Inactive Admins */}
+        {inactiveAdmins.length > 0 && (
+          <div>
+            <h3 className="text-sm font-medium text-slate-400 mb-3">
+              Inactive ({inactiveAdmins.length})
+            </h3>
+            <div className="space-y-3">
+              {inactiveAdmins.map((adminUser) => (
+                <Card
+                  key={adminUser.id}
+                  className="bg-slate-800/50 border-slate-700 p-4 opacity-75"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-slate-700 flex items-center justify-center">
+                        <Shield className="w-6 h-6 text-slate-500" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-slate-300">
+                            {adminUser.fullName}
+                          </h3>
+                          {getRoleBadge(adminUser.adminRole)}
+                          {getStatusBadge(adminUser.status)}
                         </div>
-
-                        {isPrimaryAdmin && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="bg-green-600/20 hover:bg-green-600/30 text-green-400 border-green-600/30"
-                          >
-                            Reactivate
-                          </Button>
+                        <div className="flex items-center gap-4 mt-1 text-sm text-slate-500">
+                          <span className="flex items-center gap-1">
+                            <Mail className="w-3 h-3" />
+                            {adminUser.email}
+                          </span>
+                        </div>
+                        {adminUser.deactivationReason && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            Deactivated: {adminUser.deactivationReason} on{' '}
+                            {formatDate(adminUser.deactivatedAt || '')}
+                          </p>
                         )}
                       </div>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
+                    </div>
+
+                    {isPrimaryAdmin && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="bg-green-600/20 hover:bg-green-600/30 text-green-400 border-green-600/30"
+                        onClick={() => handleReactivate(adminUser.id)}
+                      >
+                        Reactivate
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
         )}
 
-        {/* Invite Modal Placeholder */}
+        {/* Invite Modal */}
         {showInviteModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <Card className="bg-slate-800 border-slate-700 p-6 max-w-md w-full mx-4">
-              <h3 className="text-lg font-semibold text-white mb-4">
-                Invite New Admin
-              </h3>
-              <p className="text-slate-400 mb-4">
-                This feature will be available when connected to the database.
-              </p>
-              <div className="flex justify-end">
-                <Button
-                  onClick={() => setShowInviteModal(false)}
-                  variant="secondary"
-                  className="bg-slate-700 hover:bg-slate-600 text-white border-slate-600"
-                >
-                  Close
-                </Button>
-              </div>
+              {inviteSuccess ? (
+                <div className="text-center py-4">
+                  <h3 className="text-lg font-semibold text-white mb-2">Invite Sent!</h3>
+                  <p className="text-slate-400">
+                    A password setup email has been sent to {inviteEmail}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <h3 className="text-lg font-semibold text-white mb-4">
+                    Invite New Admin
+                  </h3>
+                  <div className="space-y-4">
+                    <Input
+                      label="Full Name"
+                      value={inviteName}
+                      onChange={(e) => setInviteName(e.target.value)}
+                      placeholder="e.g., Jane Support"
+                      className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
+                    />
+                    <Input
+                      label="Email"
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="admin@lynto.com"
+                      className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
+                    />
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-1">Role</label>
+                      <select
+                        value={inviteRole}
+                        onChange={(e) => setInviteRole(e.target.value as AdminRole)}
+                        className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="admin">Admin</option>
+                        <option value="readonly_admin">Read-only Admin</option>
+                      </select>
+                    </div>
+                    {inviteError && (
+                      <p className="text-sm text-red-400">{inviteError}</p>
+                    )}
+                    <div className="flex justify-end gap-3 pt-2">
+                      <Button
+                        onClick={() => {
+                          setShowInviteModal(false)
+                          setInviteError('')
+                        }}
+                        variant="secondary"
+                        className="bg-slate-700 hover:bg-slate-600 text-white border-slate-600"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleInvite}
+                        className="bg-indigo-600 hover:bg-indigo-700"
+                        loading={inviting}
+                        disabled={!inviteEmail.trim() || !inviteName.trim()}
+                      >
+                        Send Invite
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
             </Card>
           </div>
         )}

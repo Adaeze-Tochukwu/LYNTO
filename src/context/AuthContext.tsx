@@ -6,34 +6,26 @@ import {
   useCallback,
   type ReactNode,
 } from 'react'
-import { supabase } from '@/lib/supabase'
-import {
-  dbUserToUser,
-  dbAgencyToAgency,
-  dbPlatformAdminToPlatformAdmin,
-} from '@/lib/converters'
-import type { User as SupabaseUser } from '@supabase/supabase-js'
 import type { User, Manager, Carer, Agency, PlatformAdmin } from '@/types'
+import { supabase } from '@/lib/supabase'
+import { dbUserToUser, dbPlatformAdminToPlatformAdmin } from '@/lib/converters'
+import type { DbUser, DbPlatformAdmin, DbAgency } from '@/lib/database.types'
+import type { Session } from '@supabase/supabase-js'
 
 interface AuthContextType {
   user: User | null
   admin: PlatformAdmin | null
   agency: Agency | null
   isAuthenticated: boolean
-  isLoading: boolean
   isManager: boolean
   isCarer: boolean
   isAdmin: boolean
   isPrimaryAdmin: boolean
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
-  adminLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
-  logout: () => Promise<void>
-  registerAgency: (
-    agencyName: string,
-    fullName: string,
-    email: string,
-    password: string
-  ) => Promise<{ success: boolean; error?: string }>
+  isLoading: boolean
+  login: (email: string, password: string) => Promise<boolean>
+  adminLogin: (email: string, password: string) => Promise<boolean>
+  logout: () => void
+  registerAgency: (agencyName: string, fullName: string, email: string, password: string) => Promise<boolean>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -44,45 +36,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [agency, setAgency] = useState<Agency | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Fetch user profile from database
-  const fetchUserProfile = useCallback(async (authUser: SupabaseUser) => {
-    // Check if user is a platform admin
-    const { data: adminData } = await supabase
-      .from('platform_admins')
-      .select('*')
-      .eq('auth_user_id', authUser.id)
-      .eq('status', 'active')
-      .single()
-
-    if (adminData) {
-      setAdmin(dbPlatformAdminToPlatformAdmin(adminData))
+  // Load user profile from DB based on auth session
+  const loadProfile = useCallback(async (session: Session | null) => {
+    if (!session?.user) {
       setUser(null)
+      setAdmin(null)
       setAgency(null)
+      setIsLoading(false)
       return
     }
 
-    // Check if user is a regular user (manager/carer)
-    const { data: userData } = await supabase
-      .from('users')
-      .select('*')
-      .eq('auth_user_id', authUser.id)
-      .eq('status', 'active')
-      .single()
+    try {
+      // Use RPC to get profile (bypasses RLS chicken-and-egg problem)
+      const { data: profileData, error: profileError } = await supabase.rpc('get_my_profile')
 
-    if (userData) {
-      setUser(dbUserToUser(userData))
-      setAdmin(null)
-
-      // Fetch agency
-      const { data: agencyData } = await supabase
-        .from('agencies')
-        .select('*')
-        .eq('id', userData.agency_id)
-        .single()
-
-      if (agencyData) {
-        setAgency(dbAgencyToAgency(agencyData))
+      if (profileError) {
+        console.error('Error loading profile:', profileError)
+        setIsLoading(false)
+        return
       }
+
+      if (profileData?.type === 'admin') {
+        const adminProfile = profileData.profile as DbPlatformAdmin
+        setAdmin(dbPlatformAdminToPlatformAdmin(adminProfile))
+        setUser(null)
+        setAgency(null)
+      } else if (profileData?.type === 'user') {
+        const userProfile = profileData.profile as DbUser
+        const agencyData = profileData.agency as DbAgency | null
+
+        setUser(dbUserToUser(userProfile))
+        setAdmin(null)
+
+        if (agencyData) {
+          setAgency({
+            id: agencyData.id,
+            name: agencyData.name,
+            createdAt: agencyData.created_at,
+            managerId: userProfile.role === 'manager' ? userProfile.id : '',
+          })
+        }
+      } else {
+        // No profile found - could be a new user who hasn't completed registration
+        setUser(null)
+        setAdmin(null)
+        setAgency(null)
+      }
+    } catch (err) {
+      console.error('Error loading profile:', err)
+    } finally {
+      setIsLoading(false)
     }
   }, [])
 
@@ -90,176 +93,101 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        fetchUserProfile(session.user)
-      }
-      setIsLoading(false)
+      loadProfile(session)
     })
 
     // Listen for changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        await fetchUserProfile(session.user)
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null)
-        setAdmin(null)
-        setAgency(null)
-      }
-      setIsLoading(false)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      loadProfile(session)
     })
 
     return () => subscription.unsubscribe()
-  }, [fetchUserProfile])
+  }, [loadProfile])
 
-  const login = useCallback(
-    async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        })
+  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) {
+      console.error('Login error:', error.message)
+      return false
+    }
+    // Profile will be loaded by onAuthStateChange
+    return true
+  }, [])
 
-        if (error) {
-          return { success: false, error: error.message }
-        }
+  const adminLogin = useCallback(async (email: string, password: string): Promise<boolean> => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) {
+      console.error('Admin login error:', error.message)
+      return false
+    }
 
-        if (data.user) {
-          await fetchUserProfile(data.user)
-        }
+    // Verify this is actually an admin by checking the profile
+    const { data: profileData } = await supabase.rpc('get_my_profile')
 
-        return { success: true }
-      } catch {
-        return { success: false, error: 'An unexpected error occurred' }
-      }
-    },
-    [fetchUserProfile]
-  )
+    if (profileData?.type !== 'admin') {
+      // Not an admin - sign them out
+      await supabase.auth.signOut()
+      return false
+    }
 
-  const adminLogin = useCallback(
-    async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        })
+    // Update last login
+    await supabase.from('platform_admins').update({
+      last_login_at: new Date().toISOString(),
+    }).eq('id', profileData.profile.id)
 
-        if (error) {
-          return { success: false, error: error.message }
-        }
+    // Log admin login activity
+    await supabase.from('activity_log').insert({
+      event_type: 'admin_login',
+      performed_by: profileData.profile.id,
+      performed_by_name: profileData.profile.full_name,
+    })
 
-        if (data.user) {
-          // Verify this is actually an admin
-          const { data: adminData, error: adminError } = await supabase
-            .from('platform_admins')
-            .select('*')
-            .eq('auth_user_id', data.user.id)
-            .eq('status', 'active')
-            .single()
-
-          if (adminError || !adminData) {
-            await supabase.auth.signOut()
-            return { success: false, error: 'Not authorized as admin' }
-          }
-
-          // Update last login
-          await supabase
-            .from('platform_admins')
-            .update({ last_login_at: new Date().toISOString() })
-            .eq('id', adminData.id)
-
-          setAdmin(dbPlatformAdminToPlatformAdmin(adminData))
-          setUser(null)
-          setAgency(null)
-        }
-
-        return { success: true }
-      } catch {
-        return { success: false, error: 'An unexpected error occurred' }
-      }
-    },
-    []
-  )
+    return true
+  }, [])
 
   const logout = useCallback(async () => {
+    // Log admin logout if admin
+    if (admin) {
+      await supabase.from('activity_log').insert({
+        event_type: 'admin_logout',
+        performed_by: admin.id,
+        performed_by_name: admin.fullName,
+      })
+    }
+
     await supabase.auth.signOut()
     setUser(null)
     setAdmin(null)
     setAgency(null)
-  }, [])
+  }, [admin])
 
   const registerAgency = useCallback(
-    async (
-      agencyName: string,
-      fullName: string,
-      email: string,
-      password: string
-    ): Promise<{ success: boolean; error?: string }> => {
-      try {
-        // 1. Create auth user
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email,
-          password,
-        })
+    async (agencyName: string, fullName: string, email: string, password: string): Promise<boolean> => {
+      // 1. Create auth user
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      })
 
-        if (authError) {
-          return { success: false, error: authError.message }
-        }
-
-        if (!authData.user) {
-          return { success: false, error: 'Failed to create account' }
-        }
-
-        // 2. Create agency
-        const { data: agencyData, error: agencyError } = await supabase
-          .from('agencies')
-          .insert({
-            name: agencyName,
-            status: 'active',
-            contact_email: email,
-            contact_name: fullName,
-          })
-          .select()
-          .single()
-
-        if (agencyError) {
-          return { success: false, error: 'Failed to create agency' }
-        }
-
-        // 3. Create manager user
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .insert({
-            auth_user_id: authData.user.id,
-            email,
-            full_name: fullName,
-            role: 'manager',
-            status: 'active',
-            agency_id: agencyData.id,
-          })
-          .select()
-          .single()
-
-        if (userError) {
-          return { success: false, error: 'Failed to create user profile' }
-        }
-
-        // 4. Update agency with manager_id
-        await supabase
-          .from('agencies')
-          .update({ manager_id: userData.id })
-          .eq('id', agencyData.id)
-
-        // 5. Set local state
-        setUser(dbUserToUser(userData))
-        setAgency(dbAgencyToAgency(agencyData))
-        setAdmin(null)
-
-        return { success: true }
-      } catch {
-        return { success: false, error: 'An unexpected error occurred' }
+      if (signUpError) {
+        console.error('Registration error:', signUpError.message)
+        return false
       }
+
+      // 2. Call RPC to create agency + user record
+      const { error: rpcError } = await supabase.rpc('register_agency', {
+        p_agency_name: agencyName,
+        p_full_name: fullName,
+        p_email: email,
+      })
+
+      if (rpcError) {
+        console.error('Register agency error:', rpcError.message)
+        return false
+      }
+
+      // Profile will be loaded by onAuthStateChange
+      return true
     },
     []
   )
@@ -269,11 +197,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     admin,
     agency,
     isAuthenticated: !!user || !!admin,
-    isLoading,
     isManager: user?.role === 'manager',
     isCarer: user?.role === 'carer',
     isAdmin: !!admin,
     isPrimaryAdmin: admin?.adminRole === 'primary_admin',
+    isLoading,
     login,
     adminLogin,
     logout,
@@ -299,30 +227,7 @@ export function useManager(): Manager | null {
 
 export function useCarer(): Carer | null {
   const { user, isCarer } = useAuth()
-  const [assignedClientIds, setAssignedClientIds] = useState<string[]>([])
-
-  useEffect(() => {
-    if (user && isCarer) {
-      // Fetch assigned client IDs
-      supabase
-        .from('carer_client_assignments')
-        .select('client_id')
-        .eq('carer_id', user.id)
-        .then(({ data }) => {
-          if (data) {
-            setAssignedClientIds(data.map((d) => d.client_id))
-          }
-        })
-    }
-  }, [user, isCarer])
-
-  if (!isCarer || !user) return null
-
-  return {
-    ...user,
-    role: 'carer' as const,
-    assignedClientIds,
-  }
+  return isCarer ? (user as Carer) : null
 }
 
 export function useAdmin(): PlatformAdmin | null {

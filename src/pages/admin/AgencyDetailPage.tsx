@@ -3,9 +3,6 @@ import { Link, useParams, useNavigate } from 'react-router-dom'
 import { Card, Button, Badge } from '@/components/ui'
 import { useAdmin, useAuth } from '@/context/AuthContext'
 import { useAdminData } from '@/context/AdminContext'
-import { supabase } from '@/lib/supabase'
-import { dbUserToUser, dbClientToClient } from '@/lib/converters'
-import type { User, Client } from '@/types'
 import {
   Shield,
   LogOut,
@@ -18,64 +15,77 @@ import {
   Mail,
   Calendar,
   AlertTriangle,
-  Loader2,
 } from 'lucide-react'
-import type { AgencyStatus } from '@/types'
+import type { AgencyStatus, Carer, Client } from '@/types'
 
 export function AgencyDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const admin = useAdmin()
   const { logout } = useAuth()
-  const { getAgencyById, getActivityForAgency, updateAgencyStatus, isLoading } = useAdminData()
+  const {
+    getAgencyById,
+    getActivityForAgency,
+    getCarersForAgency,
+    getClientsForAgency,
+    updateAgencyStatus,
+    isLoading,
+  } = useAdminData()
   const [activeTab, setActiveTab] = useState<'overview' | 'carers' | 'clients' | 'activity'>(
     'overview'
   )
-  const [carers, setCarers] = useState<User[]>([])
+  const [carers, setCarers] = useState<Carer[]>([])
   const [clients, setClients] = useState<Client[]>([])
-  const [tabLoading, setTabLoading] = useState(false)
+  const [loadingCarers, setLoadingCarers] = useState(false)
+  const [loadingClients, setLoadingClients] = useState(false)
+  const [showStatusModal, setShowStatusModal] = useState(false)
+  const [newStatus, setNewStatus] = useState<AgencyStatus>('active')
+  const [statusNotes, setStatusNotes] = useState('')
+  const [updatingStatus, setUpdatingStatus] = useState(false)
 
   const agency = getAgencyById(id || '')
-  const agencyActivity = getActivityForAgency(id || '').slice(0, 10)
+  const agencyActivity = id ? getActivityForAgency(id).slice(0, 10) : []
 
-  // Fetch carers/clients when switching to those tabs
+  // Load carers when tab is selected
   useEffect(() => {
-    if (!id) return
-
-    if (activeTab === 'carers') {
-      setTabLoading(true)
-      supabase
-        .from('users')
-        .select('*')
-        .eq('agency_id', id)
-        .eq('role', 'carer')
-        .order('created_at', { ascending: false })
-        .then(({ data }) => {
-          if (data) {
-            setCarers(data.map(dbUserToUser))
-          }
-          setTabLoading(false)
-        })
-    } else if (activeTab === 'clients') {
-      setTabLoading(true)
-      supabase
-        .from('clients')
-        .select('*')
-        .eq('agency_id', id)
-        .order('created_at', { ascending: false })
-        .then(({ data }) => {
-          if (data) {
-            setClients(data.map(dbClientToClient))
-          }
-          setTabLoading(false)
-        })
+    if (activeTab === 'carers' && id && carers.length === 0) {
+      setLoadingCarers(true)
+      getCarersForAgency(id)
+        .then(setCarers)
+        .catch((err) => console.error('Failed to load carers:', err))
+        .finally(() => setLoadingCarers(false))
     }
-  }, [activeTab, id])
+  }, [activeTab, id, getCarersForAgency, carers.length])
+
+  // Load clients when tab is selected
+  useEffect(() => {
+    if (activeTab === 'clients' && id && clients.length === 0) {
+      setLoadingClients(true)
+      getClientsForAgency(id)
+        .then(setClients)
+        .catch((err) => console.error('Failed to load clients:', err))
+        .finally(() => setLoadingClients(false))
+    }
+  }, [activeTab, id, getClientsForAgency, clients.length])
+
+  const handleStatusChange = async () => {
+    if (!id) return
+    setUpdatingStatus(true)
+    try {
+      await updateAgencyStatus(id, newStatus, statusNotes || undefined)
+      setShowStatusModal(false)
+      setStatusNotes('')
+    } catch (err) {
+      console.error('Failed to update agency status:', err)
+    } finally {
+      setUpdatingStatus(false)
+    }
+  }
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+        <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -119,16 +129,20 @@ export function AgencyDetailPage() {
     })
   }
 
+  const formatShortDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })
+  }
+
   const formatEventType = (type: string) => {
     return type
       .split('_')
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ')
-  }
-
-  const handleStatusChange = async () => {
-    const newStatus: AgencyStatus = agency.status === 'active' ? 'suspended' : 'active'
-    await updateAgencyStatus(agency.id, newStatus)
   }
 
   return (
@@ -226,15 +240,11 @@ export function AgencyDetailPage() {
               <Button
                 variant="secondary"
                 size="sm"
-                className="bg-slate-700 hover:bg-slate-600 text-white border-slate-600"
-              >
-                Edit Details
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
                 className="bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border-amber-600/30"
-                onClick={handleStatusChange}
+                onClick={() => {
+                  setNewStatus(agency.status)
+                  setShowStatusModal(true)
+                }}
               >
                 Change Status
               </Button>
@@ -393,6 +403,95 @@ export function AgencyDetailPage() {
           </Card>
         )}
 
+        {activeTab === 'carers' && (
+          <Card className="bg-slate-800 border-slate-700 p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Carers</h3>
+            {loadingCarers ? (
+              <div className="flex justify-center py-8">
+                <div className="w-6 h-6 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : carers.length > 0 ? (
+              <div className="space-y-3">
+                {carers.map((carer) => (
+                  <div
+                    key={carer.id}
+                    className="flex items-center justify-between py-3 border-b border-slate-700 last:border-0"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+                        <Users className="w-5 h-5 text-green-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-white">{carer.fullName}</p>
+                        <p className="text-xs text-slate-400">{carer.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-slate-500">
+                        {carer.assignedClientIds.length} client{carer.assignedClientIds.length !== 1 ? 's' : ''}
+                      </span>
+                      <Badge variant={carer.status === 'active' ? 'success' : 'secondary'}>
+                        {carer.status === 'active' ? 'Active' : 'Inactive'}
+                      </Badge>
+                      <span className="text-xs text-slate-500">
+                        Joined {formatShortDate(carer.createdAt)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-slate-400 text-center py-8">
+                No carers found for this agency.
+              </p>
+            )}
+          </Card>
+        )}
+
+        {activeTab === 'clients' && (
+          <Card className="bg-slate-800 border-slate-700 p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Clients</h3>
+            {loadingClients ? (
+              <div className="flex justify-center py-8">
+                <div className="w-6 h-6 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : clients.length > 0 ? (
+              <div className="space-y-3">
+                {clients.map((client) => (
+                  <div
+                    key={client.id}
+                    className="flex items-center justify-between py-3 border-b border-slate-700 last:border-0"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                        <UserCheck className="w-5 h-5 text-purple-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-white">{client.displayName}</p>
+                        {client.internalReference && (
+                          <p className="text-xs text-slate-400">Ref: {client.internalReference}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant={client.status === 'active' ? 'success' : 'secondary'}>
+                        {client.status === 'active' ? 'Active' : 'Inactive'}
+                      </Badge>
+                      <span className="text-xs text-slate-500">
+                        Added {formatShortDate(client.createdAt)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-slate-400 text-center py-8">
+                No clients found for this agency.
+              </p>
+            )}
+          </Card>
+        )}
+
         {activeTab === 'activity' && (
           <Card className="bg-slate-800 border-slate-700 p-6">
             <h3 className="text-lg font-semibold text-white mb-4">Activity Log</h3>
@@ -433,82 +532,59 @@ export function AgencyDetailPage() {
           </Card>
         )}
 
-        {activeTab === 'carers' && (
-          <Card className="bg-slate-800 border-slate-700 p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Carers</h3>
-            {tabLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
-              </div>
-            ) : carers.length > 0 ? (
-              <div className="space-y-3">
-                {carers.map((carer) => (
-                  <div
-                    key={carer.id}
-                    className="flex items-center justify-between py-3 border-b border-slate-700 last:border-0"
+        {/* Change Status Modal */}
+        {showStatusModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <Card className="bg-slate-800 border-slate-700 p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-white mb-4">
+                Change Agency Status
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">New Status</label>
+                  <select
+                    value={newStatus}
+                    onChange={(e) => setNewStatus(e.target.value as AgencyStatus)}
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                        <Users className="w-5 h-5 text-green-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">{carer.fullName}</p>
-                        <p className="text-xs text-slate-400">{carer.email}</p>
-                      </div>
-                    </div>
-                    <Badge variant={carer.status === 'active' ? 'success' : 'secondary'}>
-                      {carer.status}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-slate-400 text-center py-8">
-                No carers found for this agency.
-              </p>
-            )}
-          </Card>
-        )}
-
-        {activeTab === 'clients' && (
-          <Card className="bg-slate-800 border-slate-700 p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Clients</h3>
-            {tabLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
-              </div>
-            ) : clients.length > 0 ? (
-              <div className="space-y-3">
-                {clients.map((client) => (
-                  <div
-                    key={client.id}
-                    className="flex items-center justify-between py-3 border-b border-slate-700 last:border-0"
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="suspended">Suspended</option>
+                    <option value="pending">Pending</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Notes (optional)</label>
+                  <textarea
+                    value={statusNotes}
+                    onChange={(e) => setStatusNotes(e.target.value)}
+                    placeholder="Reason for status change..."
+                    rows={3}
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-400 resize-none"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button
+                    onClick={() => {
+                      setShowStatusModal(false)
+                      setStatusNotes('')
+                    }}
+                    variant="secondary"
+                    className="bg-slate-700 hover:bg-slate-600 text-white border-slate-600"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                        <UserCheck className="w-5 h-5 text-purple-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">{client.displayName}</p>
-                        {client.internalReference && (
-                          <p className="text-xs text-slate-400">
-                            Ref: {client.internalReference}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <Badge variant={client.status === 'active' ? 'success' : 'secondary'}>
-                      {client.status}
-                    </Badge>
-                  </div>
-                ))}
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleStatusChange}
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                    loading={updatingStatus}
+                  >
+                    Update Status
+                  </Button>
+                </div>
               </div>
-            ) : (
-              <p className="text-slate-400 text-center py-8">
-                No clients found for this agency.
-              </p>
-            )}
-          </Card>
+            </Card>
+          </div>
         )}
       </main>
     </div>

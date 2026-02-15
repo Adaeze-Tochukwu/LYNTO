@@ -44,11 +44,15 @@ export function EntryDetailPage() {
 
   const canAddCorrection = user?.id === entry.carerId
 
-  const handleAddCorrection = () => {
+  const handleAddCorrection = async () => {
     if (!correctionText.trim() || !user) return
-    addCorrectionNote(entry.id, user.id, correctionText.trim())
-    setCorrectionText('')
-    setShowCorrectionModal(false)
+    try {
+      await addCorrectionNote(entry.id, user.id, correctionText.trim())
+      setCorrectionText('')
+      setShowCorrectionModal(false)
+    } catch (err) {
+      console.error('Failed to add correction note:', err)
+    }
   }
 
   return (

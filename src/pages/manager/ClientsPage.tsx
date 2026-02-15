@@ -27,12 +27,16 @@ export function ClientsPage() {
   const activeCount = clients.filter((c) => c.status === 'active').length
   const inactiveCount = clients.filter((c) => c.status === 'inactive').length
 
-  const handleAddClient = () => {
+  const handleAddClient = async () => {
     if (!newClientName.trim()) return
-    addClient(newClientName.trim(), newClientRef.trim() || undefined)
-    setNewClientName('')
-    setNewClientRef('')
-    setShowAddModal(false)
+    try {
+      await addClient(newClientName.trim(), newClientRef.trim() || undefined)
+      setNewClientName('')
+      setNewClientRef('')
+      setShowAddModal(false)
+    } catch (err) {
+      console.error('Failed to add client:', err)
+    }
   }
 
   return (

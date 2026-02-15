@@ -6,16 +6,6 @@ import {
   useCallback,
   type ReactNode,
 } from 'react'
-import { supabase } from '@/lib/supabase'
-import { useAuth } from './AuthContext'
-import { getSymptomById } from '@/data/symptoms'
-import {
-  dbClientToClient,
-  dbUserToCarer,
-  dbVisitEntryToVisitEntry,
-  dbAlertToAlert,
-  dbCorrectionNoteToCorrectionNote,
-} from '@/lib/converters'
 import type {
   Client,
   Carer,
@@ -26,7 +16,20 @@ import type {
   RiskLevel,
   ClientDeactivationReason,
   CarerDeactivationReason,
+  CorrectionNote,
 } from '@/types'
+import { supabase, createFreshClient } from '@/lib/supabase'
+import { useAuth } from './AuthContext'
+import { getSymptomById } from '@/data/symptoms'
+import {
+  dbClientToClient,
+  dbUserToCarer,
+  dbVisitEntryToVisitEntry,
+  dbCorrectionNoteToCorrectionNote,
+  dbAlertToAlert,
+  vitalsToDb,
+} from '@/lib/converters'
+import type { DbClient, DbUser, DbVisitEntry, DbCorrectionNote, DbAlert, DbCarerClientAssignment } from '@/lib/database.types'
 
 interface AppContextType {
   // Data
@@ -36,11 +39,8 @@ interface AppContextType {
   alerts: Alert[]
   isLoading: boolean
 
-  // Refresh data
-  refreshData: () => Promise<void>
-
   // Client actions
-  addClient: (displayName: string, internalReference?: string) => Promise<Client | null>
+  addClient: (displayName: string, internalReference?: string) => Promise<Client>
   updateClientStatus: (
     clientId: string,
     status: 'active' | 'inactive',
@@ -53,7 +53,7 @@ interface AppContextType {
   getClientsForCarer: (carerId: string) => Client[]
 
   // Carer actions
-  addCarer: (fullName: string, email: string) => Promise<Carer | null>
+  addCarer: (fullName: string, email: string) => Promise<Carer>
   deactivateCarer: (carerId: string, reason: CarerDeactivationReason) => Promise<void>
   getCarerById: (id: string) => Carer | undefined
   getActiveCarers: () => Carer[]
@@ -66,7 +66,7 @@ interface AppContextType {
     selectedSymptomIds: string[],
     vitals: Vitals,
     note: string
-  ) => Promise<VisitEntry | null>
+  ) => Promise<VisitEntry>
   addCorrectionNote: (visitEntryId: string, carerId: string, text: string) => Promise<void>
   getVisitEntriesForClient: (clientId: string) => VisitEntry[]
   getVisitEntryById: (id: string) => VisitEntry | undefined
@@ -84,138 +84,196 @@ interface AppContextType {
   ) => Promise<void>
   getAlertById: (id: string) => Alert | undefined
   getUnreviewedCount: (agencyId: string) => number
+
+  // Refresh
+  refreshData: () => Promise<void>
 }
 
 const AppContext = createContext<AppContextType | null>(null)
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const { agency } = useAuth()
+  const { user, agency, isAuthenticated, isAdmin } = useAuth()
   const [clients, setClients] = useState<Client[]>([])
   const [carers, setCarers] = useState<Carer[]>([])
   const [visitEntries, setVisitEntries] = useState<VisitEntry[]>([])
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  // Fetch all data for the agency
-  const refreshData = useCallback(async () => {
-    if (!agency) {
-      setClients([])
-      setCarers([])
-      setVisitEntries([])
-      setAlerts([])
+  const loadData = useCallback(async () => {
+    if (!isAuthenticated || isAdmin || !user) {
       setIsLoading(false)
       return
     }
 
     setIsLoading(true)
-
     try {
-      // Fetch clients
-      const { data: clientsData } = await supabase
+      // Load clients
+      const { data: clientRows } = await supabase
         .from('clients')
         .select('*')
-        .eq('agency_id', agency.id)
         .order('created_at', { ascending: false })
 
-      if (clientsData) {
-        setClients(clientsData.map(dbClientToClient))
+      if (clientRows) {
+        setClients(clientRows.map((r: DbClient) => dbClientToClient(r)))
       }
 
-      // Fetch carers with their assignments
-      const { data: carersData } = await supabase
+      // Load carers (users with role='carer') and their assignments
+      const { data: carerRows } = await supabase
         .from('users')
         .select('*')
-        .eq('agency_id', agency.id)
         .eq('role', 'carer')
         .order('created_at', { ascending: false })
 
-      if (carersData) {
-        // Fetch assignments for each carer
-        const carersWithAssignments = await Promise.all(
-          carersData.map(async (carer) => {
-            const { data: assignments } = await supabase
-              .from('carer_client_assignments')
-              .select('client_id')
-              .eq('carer_id', carer.id)
+      const { data: assignmentRows } = await supabase
+        .from('carer_client_assignments')
+        .select('*')
 
-            const assignedClientIds = assignments?.map((a) => a.client_id) || []
-            return dbUserToCarer(carer, assignedClientIds)
+      if (carerRows) {
+        const assignments = (assignmentRows || []) as DbCarerClientAssignment[]
+        setCarers(
+          carerRows.map((r: DbUser) => {
+            const carerAssignments = assignments
+              .filter((a) => a.carer_id === r.id)
+              .map((a) => a.client_id)
+            return dbUserToCarer(r, carerAssignments)
           })
         )
-        setCarers(carersWithAssignments)
       }
 
-      // Fetch visit entries with correction notes
-      const { data: visitsData } = await supabase
+      // Load visit entries with correction notes
+      const { data: visitRows } = await supabase
         .from('visit_entries')
         .select('*')
-        .eq('agency_id', agency.id)
         .order('created_at', { ascending: false })
 
-      if (visitsData) {
-        // Fetch correction notes for each visit
-        const visitsWithNotes = await Promise.all(
-          visitsData.map(async (visit) => {
-            const { data: notes } = await supabase
-              .from('correction_notes')
-              .select('*')
-              .eq('visit_entry_id', visit.id)
-              .order('created_at', { ascending: true })
+      const { data: noteRows } = await supabase
+        .from('correction_notes')
+        .select('*')
+        .order('created_at', { ascending: true })
 
-            return dbVisitEntryToVisitEntry(visit, notes || undefined)
+      if (visitRows) {
+        const notes = (noteRows || []) as DbCorrectionNote[]
+        setVisitEntries(
+          visitRows.map((r: DbVisitEntry) => {
+            const entryNotes = notes
+              .filter((n) => n.visit_entry_id === r.id)
+              .map(dbCorrectionNoteToCorrectionNote)
+            return dbVisitEntryToVisitEntry(r, entryNotes.length > 0 ? entryNotes : undefined)
           })
         )
-        setVisitEntries(visitsWithNotes)
       }
 
-      // Fetch alerts
-      const { data: alertsData } = await supabase
+      // Load alerts
+      const { data: alertRows } = await supabase
         .from('alerts')
         .select('*')
-        .eq('agency_id', agency.id)
         .order('created_at', { ascending: false })
 
-      if (alertsData) {
-        setAlerts(alertsData.map(dbAlertToAlert))
+      if (alertRows) {
+        setAlerts(alertRows.map((r: DbAlert) => dbAlertToAlert(r)))
       }
-    } catch (error) {
-      console.error('Error fetching data:', error)
+    } catch (err) {
+      console.error('Error loading app data:', err)
     } finally {
       setIsLoading(false)
     }
-  }, [agency])
+  }, [isAuthenticated, isAdmin, user])
 
-  // Fetch data when agency changes
   useEffect(() => {
-    refreshData()
-  }, [refreshData])
+    loadData()
+  }, [loadData])
+
+  // Risk calculation (same logic as before)
+  const calculateRisk = (
+    selectedSymptomIds: string[],
+    vitals: Vitals
+  ): { score: number; riskLevel: RiskLevel; reasons: string[] } => {
+    let score = 0
+    const reasons: string[] = []
+
+    for (const symptomId of selectedSymptomIds) {
+      const symptom = getSymptomById(symptomId)
+      if (symptom) {
+        score += symptom.points
+        reasons.push(symptom.label)
+      }
+    }
+
+    if (vitals.temperature !== undefined) {
+      if (vitals.temperature >= 38) {
+        score += 2
+        reasons.push(`High temperature (${vitals.temperature}°C)`)
+      } else if (vitals.temperature < 36) {
+        score += 1
+        reasons.push(`Low temperature (${vitals.temperature}°C)`)
+      }
+    }
+    if (vitals.pulse !== undefined) {
+      if (vitals.pulse > 100 || vitals.pulse < 50) {
+        score += 1
+        reasons.push(`Abnormal pulse (${vitals.pulse} bpm)`)
+      }
+    }
+    if (vitals.oxygenSaturation !== undefined && vitals.oxygenSaturation < 95) {
+      score += 2
+      reasons.push(`Low oxygen saturation (${vitals.oxygenSaturation}%)`)
+    }
+    if (vitals.respiratoryRate !== undefined) {
+      if (vitals.respiratoryRate > 20 || vitals.respiratoryRate < 12) {
+        score += 1
+        reasons.push(`Abnormal respiratory rate (${vitals.respiratoryRate}/min)`)
+      }
+    }
+    if (vitals.systolicBp !== undefined && vitals.diastolicBp !== undefined) {
+      if (vitals.systolicBp > 140 || vitals.systolicBp < 90) {
+        score += 1
+        reasons.push(`Abnormal blood pressure (${vitals.systolicBp}/${vitals.diastolicBp})`)
+      }
+    }
+
+    let riskLevel: RiskLevel = 'green'
+    if (score >= 5) riskLevel = 'red'
+    else if (score >= 3) riskLevel = 'amber'
+
+    return { score, riskLevel, reasons }
+  }
 
   // Client actions
   const addClient = useCallback(
-    async (displayName: string, internalReference?: string): Promise<Client | null> => {
-      if (!agency) return null
+    async (displayName: string, internalReference?: string): Promise<Client> => {
+      const agencyId = agency?.id || user?.agencyId
+      if (!agencyId) throw new Error('No agency found')
 
       const { data, error } = await supabase
         .from('clients')
         .insert({
           display_name: displayName,
-          internal_reference: internalReference,
-          agency_id: agency.id,
+          internal_reference: internalReference || null,
+          agency_id: agencyId,
           status: 'active',
         })
         .select()
         .single()
 
-      if (error) {
-        console.error('Error adding client:', error)
-        return null
-      }
+      if (error) throw error
 
-      const newClient = dbClientToClient(data)
+      const newClient = dbClientToClient(data as DbClient)
       setClients((prev) => [newClient, ...prev])
+
+      // Log activity
+      await supabase.from('activity_log').insert({
+        event_type: 'client_created',
+        agency_id: agencyId,
+        agency_name: agency?.name || '',
+        entity_id: newClient.id,
+        entity_name: displayName,
+        performed_by: user!.id,
+        performed_by_name: user!.fullName,
+      })
+
       return newClient
     },
-    [agency]
+    [agency, user]
   )
 
   const updateClientStatus = useCallback(
@@ -224,21 +282,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       status: 'active' | 'inactive',
       reason?: ClientDeactivationReason,
       note?: string
-    ) => {
+    ): Promise<void> => {
+      const updates: Record<string, unknown> = { status }
+      if (status === 'inactive') {
+        updates.deactivation_reason = reason || null
+        updates.deactivation_note = note || null
+        updates.deactivated_at = new Date().toISOString()
+      } else {
+        updates.deactivation_reason = null
+        updates.deactivation_note = null
+        updates.deactivated_at = null
+      }
+
       const { error } = await supabase
         .from('clients')
-        .update({
-          status,
-          deactivation_reason: status === 'inactive' ? reason : null,
-          deactivation_note: status === 'inactive' ? note : null,
-          deactivated_at: status === 'inactive' ? new Date().toISOString() : null,
-        })
+        .update(updates)
         .eq('id', clientId)
 
-      if (error) {
-        console.error('Error updating client:', error)
-        return
-      }
+      if (error) throw error
 
       setClients((prev) =>
         prev.map((c) =>
@@ -253,50 +314,71 @@ export function AppProvider({ children }: { children: ReactNode }) {
             : c
         )
       )
+
+      // Log activity
+      const client = clients.find((c) => c.id === clientId)
+      if (user && client) {
+        await supabase.from('activity_log').insert({
+          event_type: status === 'inactive' ? 'client_deactivated' : 'client_reactivated',
+          agency_id: agency?.id,
+          agency_name: agency?.name || '',
+          entity_id: clientId,
+          entity_name: client.displayName,
+          performed_by: user.id,
+          performed_by_name: user.fullName,
+          reason: reason || undefined,
+        })
+      }
+    },
+    [agency, user, clients]
+  )
+
+  const assignCarerToClient = useCallback(
+    async (clientId: string, carerId: string): Promise<void> => {
+      const agencyId = agency?.id || user?.agencyId
+      if (!agencyId) throw new Error('No agency found')
+
+      const { error } = await supabase
+        .from('carer_client_assignments')
+        .insert({
+          carer_id: carerId,
+          client_id: clientId,
+          agency_id: agencyId,
+        })
+
+      if (error) throw error
+
+      setCarers((prev) =>
+        prev.map((c) =>
+          c.id === carerId && !c.assignedClientIds.includes(clientId)
+            ? { ...c, assignedClientIds: [...c.assignedClientIds, clientId] }
+            : c
+        )
+      )
+    },
+    [agency, user]
+  )
+
+  const unassignCarerFromClient = useCallback(
+    async (clientId: string, carerId: string): Promise<void> => {
+      const { error } = await supabase
+        .from('carer_client_assignments')
+        .delete()
+        .eq('carer_id', carerId)
+        .eq('client_id', clientId)
+
+      if (error) throw error
+
+      setCarers((prev) =>
+        prev.map((c) =>
+          c.id === carerId
+            ? { ...c, assignedClientIds: c.assignedClientIds.filter((id) => id !== clientId) }
+            : c
+        )
+      )
     },
     []
   )
-
-  const assignCarerToClient = useCallback(async (clientId: string, carerId: string) => {
-    const { error } = await supabase.from('carer_client_assignments').insert({
-      carer_id: carerId,
-      client_id: clientId,
-    })
-
-    if (error) {
-      console.error('Error assigning carer:', error)
-      return
-    }
-
-    setCarers((prev) =>
-      prev.map((c) =>
-        c.id === carerId && !c.assignedClientIds.includes(clientId)
-          ? { ...c, assignedClientIds: [...c.assignedClientIds, clientId] }
-          : c
-      )
-    )
-  }, [])
-
-  const unassignCarerFromClient = useCallback(async (clientId: string, carerId: string) => {
-    const { error } = await supabase
-      .from('carer_client_assignments')
-      .delete()
-      .eq('carer_id', carerId)
-      .eq('client_id', clientId)
-
-    if (error) {
-      console.error('Error unassigning carer:', error)
-      return
-    }
-
-    setCarers((prev) =>
-      prev.map((c) =>
-        c.id === carerId
-          ? { ...c, assignedClientIds: c.assignedClientIds.filter((id) => id !== clientId) }
-          : c
-      )
-    )
-  }, [])
 
   const getClientById = useCallback(
     (id: string) => clients.find((c) => c.id === id),
@@ -316,35 +398,72 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Carer actions
   const addCarer = useCallback(
-    async (fullName: string, email: string): Promise<Carer | null> => {
-      if (!agency) return null
+    async (fullName: string, email: string): Promise<Carer> => {
+      const agencyId = agency?.id || user?.agencyId
+      if (!agencyId) throw new Error('No agency found')
 
-      const { data, error } = await supabase
+      // 1. Create auth user with random password (fresh client to avoid session conflict)
+      const freshClient = createFreshClient()
+      const tempPassword = crypto.randomUUID()
+
+      const { data: signUpData, error: signUpError } = await freshClient.auth.signUp({
+        email,
+        password: tempPassword,
+      })
+
+      if (signUpError || !signUpData.user) {
+        throw new Error(signUpError?.message || 'Failed to create user')
+      }
+
+      // 2. Create users row
+      const { error: insertError } = await supabase
         .from('users')
         .insert({
+          id: signUpData.user.id,
           email,
           full_name: fullName,
           role: 'carer',
           status: 'pending',
-          agency_id: agency.id,
+          agency_id: agencyId,
         })
-        .select()
-        .single()
 
-      if (error) {
-        console.error('Error adding carer:', error)
-        return null
+      if (insertError) throw insertError
+
+      // 3. Send password reset email (this is the "set password" email)
+      await freshClient.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/set-password`,
+      })
+
+      // 4. Log activity
+      await supabase.from('activity_log').insert({
+        event_type: 'carer_created',
+        agency_id: agencyId,
+        agency_name: agency?.name || '',
+        entity_id: signUpData.user.id,
+        entity_name: fullName,
+        performed_by: user!.id,
+        performed_by_name: user!.fullName,
+      })
+
+      // 5. Update local state
+      const newCarer: Carer = {
+        id: signUpData.user.id,
+        email,
+        fullName,
+        role: 'carer',
+        status: 'pending',
+        agencyId,
+        createdAt: new Date().toISOString(),
+        assignedClientIds: [],
       }
-
-      const newCarer = dbUserToCarer(data, [])
       setCarers((prev) => [newCarer, ...prev])
       return newCarer
     },
-    [agency]
+    [agency, user]
   )
 
   const deactivateCarer = useCallback(
-    async (carerId: string, reason: CarerDeactivationReason) => {
+    async (carerId: string, reason: CarerDeactivationReason): Promise<void> => {
       const { error } = await supabase
         .from('users')
         .update({
@@ -354,25 +473,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
         })
         .eq('id', carerId)
 
-      if (error) {
-        console.error('Error deactivating carer:', error)
-        return
-      }
+      if (error) throw error
 
       setCarers((prev) =>
         prev.map((c) =>
           c.id === carerId
             ? {
                 ...c,
-                status: 'inactive',
+                status: 'inactive' as const,
                 deactivationReason: reason,
                 deactivatedAt: new Date().toISOString(),
               }
             : c
         )
       )
+
+      // Log activity
+      const carer = carers.find((c) => c.id === carerId)
+      if (user && carer) {
+        await supabase.from('activity_log').insert({
+          event_type: 'carer_deactivated',
+          agency_id: agency?.id,
+          agency_name: agency?.name || '',
+          entity_id: carerId,
+          entity_name: carer.fullName,
+          performed_by: user.id,
+          performed_by_name: user.fullName,
+          reason,
+        })
+      }
     },
-    []
+    [agency, user, carers]
   )
 
   const getCarerById = useCallback(
@@ -385,71 +516,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [carers]
   )
 
-  // Risk calculation
-  const calculateRisk = (
-    selectedSymptomIds: string[],
-    vitals: Vitals
-  ): { score: number; riskLevel: RiskLevel; reasons: string[] } => {
-    let score = 0
-    const reasons: string[] = []
-
-    // Calculate from symptoms
-    for (const symptomId of selectedSymptomIds) {
-      const symptom = getSymptomById(symptomId)
-      if (symptom) {
-        score += symptom.points
-        reasons.push(symptom.label)
-      }
-    }
-
-    // Calculate from vitals (abnormal values)
-    if (vitals.temperature !== undefined) {
-      if (vitals.temperature >= 38) {
-        score += 2
-        reasons.push(`High temperature (${vitals.temperature}°C)`)
-      } else if (vitals.temperature < 36) {
-        score += 1
-        reasons.push(`Low temperature (${vitals.temperature}°C)`)
-      }
-    }
-
-    if (vitals.pulse !== undefined) {
-      if (vitals.pulse > 100 || vitals.pulse < 50) {
-        score += 1
-        reasons.push(`Abnormal pulse (${vitals.pulse} bpm)`)
-      }
-    }
-
-    if (vitals.oxygenSaturation !== undefined && vitals.oxygenSaturation < 95) {
-      score += 2
-      reasons.push(`Low oxygen saturation (${vitals.oxygenSaturation}%)`)
-    }
-
-    if (vitals.respiratoryRate !== undefined) {
-      if (vitals.respiratoryRate > 20 || vitals.respiratoryRate < 12) {
-        score += 1
-        reasons.push(`Abnormal respiratory rate (${vitals.respiratoryRate}/min)`)
-      }
-    }
-
-    if (vitals.systolicBp !== undefined && vitals.diastolicBp !== undefined) {
-      if (vitals.systolicBp > 140 || vitals.systolicBp < 90) {
-        score += 1
-        reasons.push(`Abnormal blood pressure (${vitals.systolicBp}/${vitals.diastolicBp})`)
-      }
-    }
-
-    // Determine risk level
-    let riskLevel: RiskLevel = 'green'
-    if (score >= 5) {
-      riskLevel = 'red'
-    } else if (score >= 3) {
-      riskLevel = 'amber'
-    }
-
-    return { score, riskLevel, reasons }
-  }
-
   // Visit entry actions
   const createVisitEntry = useCallback(
     async (
@@ -459,7 +525,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       selectedSymptomIds: string[],
       vitals: Vitals,
       note: string
-    ): Promise<VisitEntry | null> => {
+    ): Promise<VisitEntry> => {
       const { score, riskLevel, reasons } = calculateRisk(selectedSymptomIds, vitals)
 
       const { data, error } = await supabase
@@ -469,12 +535,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           carer_id: carerId,
           agency_id: agencyId,
           selected_symptom_ids: selectedSymptomIds,
-          temperature: vitals.temperature,
-          pulse: vitals.pulse,
-          systolic_bp: vitals.systolicBp,
-          diastolic_bp: vitals.diastolicBp,
-          oxygen_saturation: vitals.oxygenSaturation,
-          respiratory_rate: vitals.respiratoryRate,
+          vitals: vitalsToDb(vitals),
           note,
           score,
           risk_level: riskLevel,
@@ -483,35 +544,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .select()
         .single()
 
-      if (error) {
-        console.error('Error creating visit entry:', error)
-        return null
-      }
+      if (error) throw error
 
-      const newEntry = dbVisitEntryToVisitEntry(data)
+      const newEntry = dbVisitEntryToVisitEntry(data as DbVisitEntry)
+      setVisitEntries((prev) => [newEntry, ...prev])
 
-      // Alert is auto-created by database trigger for amber/red
-      // Refresh to get the new alert
+      // Alert is auto-created by DB trigger, so refresh alerts
       if (riskLevel === 'amber' || riskLevel === 'red') {
-        const { data: newAlertData } = await supabase
+        const { data: alertRows } = await supabase
           .from('alerts')
           .select('*')
-          .eq('visit_entry_id', data.id)
+          .eq('visit_entry_id', newEntry.id)
           .single()
 
-        if (newAlertData) {
-          setAlerts((prev) => [dbAlertToAlert(newAlertData), ...prev])
+        if (alertRows) {
+          const newAlert = dbAlertToAlert(alertRows as DbAlert)
+          setAlerts((prev) => [newAlert, ...prev])
         }
       }
 
-      setVisitEntries((prev) => [newEntry, ...prev])
       return newEntry
     },
     []
   )
 
   const addCorrectionNote = useCallback(
-    async (visitEntryId: string, carerId: string, text: string) => {
+    async (visitEntryId: string, carerId: string, text: string): Promise<void> => {
       const { data, error } = await supabase
         .from('correction_notes')
         .insert({
@@ -522,12 +580,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .select()
         .single()
 
-      if (error) {
-        console.error('Error adding correction note:', error)
-        return
-      }
+      if (error) throw error
 
-      const newNote = dbCorrectionNoteToCorrectionNote(data)
+      const newNote: CorrectionNote = dbCorrectionNoteToCorrectionNote(data as DbCorrectionNote)
 
       setVisitEntries((prev) =>
         prev.map((v) =>
@@ -578,7 +633,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   )
 
   const reviewAlert = useCallback(
-    async (alertId: string, managerId: string, actionTaken: AlertActionTaken, note?: string) => {
+    async (
+      alertId: string,
+      managerId: string,
+      actionTaken: AlertActionTaken,
+      note?: string
+    ): Promise<void> => {
       const { error } = await supabase
         .from('alerts')
         .update({
@@ -586,14 +646,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           reviewed_by: managerId,
           reviewed_at: new Date().toISOString(),
           action_taken: actionTaken,
-          manager_note: note,
+          manager_note: note || null,
         })
         .eq('id', alertId)
 
-      if (error) {
-        console.error('Error reviewing alert:', error)
-        return
-      }
+      if (error) throw error
 
       setAlerts((prev) =>
         prev.map((a) =>
@@ -613,12 +670,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     []
   )
 
-  const getAlertById = useCallback((id: string) => alerts.find((a) => a.id === id), [alerts])
-
-  const getUnreviewedCount = useCallback(
-    (agencyId: string) => alerts.filter((a) => a.agencyId === agencyId && !a.isReviewed).length,
+  const getAlertById = useCallback(
+    (id: string) => alerts.find((a) => a.id === id),
     [alerts]
   )
+
+  const getUnreviewedCount = useCallback(
+    (agencyId: string) =>
+      alerts.filter((a) => a.agencyId === agencyId && !a.isReviewed).length,
+    [alerts]
+  )
+
+  const refreshData = useCallback(async () => {
+    await loadData()
+  }, [loadData])
 
   const value: AppContextType = {
     clients,
@@ -626,7 +691,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     visitEntries,
     alerts,
     isLoading,
-    refreshData,
     addClient,
     updateClientStatus,
     assignCarerToClient,
@@ -645,6 +709,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     reviewAlert,
     getAlertById,
     getUnreviewedCount,
+    refreshData,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

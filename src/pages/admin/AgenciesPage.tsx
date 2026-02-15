@@ -11,7 +11,6 @@ import {
   Users,
   UserCheck,
   ChevronRight,
-  Loader2,
 } from 'lucide-react'
 import type { AgencyStatus } from '@/types'
 
@@ -52,6 +51,14 @@ export function AgenciesPage() {
       month: 'short',
       year: 'numeric',
     })
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
   }
 
   return (
@@ -143,74 +150,68 @@ export function AgenciesPage() {
           </select>
         </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-          </div>
-        ) : (
-          /* Agencies List */
-          <div className="space-y-3">
-            {filteredAgencies.map((agency) => (
-              <Link key={agency.id} to={`/admin/agencies/${agency.id}`}>
-                <Card className="bg-slate-800 border-slate-700 p-4 hover:bg-slate-750 hover:border-slate-600 transition-colors cursor-pointer">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                        <Building2 className="w-6 h-6 text-blue-400" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-white">{agency.name}</h3>
-                          {getStatusBadge(agency.status)}
-                        </div>
-                        <p className="text-sm text-slate-400 mt-0.5">
-                          {agency.contactName} - {agency.contactEmail}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          Created {formatDate(agency.createdAt)}
-                        </p>
-                      </div>
+        {/* Agencies List */}
+        <div className="space-y-3">
+          {filteredAgencies.map((agency) => (
+            <Link key={agency.id} to={`/admin/agencies/${agency.id}`}>
+              <Card className="bg-slate-800 border-slate-700 p-4 hover:bg-slate-750 hover:border-slate-600 transition-colors cursor-pointer">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                      <Building2 className="w-6 h-6 text-blue-400" />
                     </div>
-
-                    <div className="flex items-center gap-6">
-                      <div className="text-center">
-                        <div className="flex items-center gap-1 text-slate-400">
-                          <Users className="w-4 h-4" />
-                          <span className="text-sm font-medium text-white">
-                            {agency.activeCarers}/{agency.totalCarers}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-500">Carers</p>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-white">{agency.name}</h3>
+                        {getStatusBadge(agency.status)}
                       </div>
-                      <div className="text-center">
-                        <div className="flex items-center gap-1 text-slate-400">
-                          <UserCheck className="w-4 h-4" />
-                          <span className="text-sm font-medium text-white">
-                            {agency.activeClients}/{agency.totalClients}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-500">Clients</p>
-                      </div>
-                      <div className="text-center">
-                        <span className="text-sm font-medium text-amber-400">
-                          {agency.unreviewedAlerts}
-                        </span>
-                        <p className="text-xs text-slate-500">Unreviewed</p>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-slate-500" />
+                      <p className="text-sm text-slate-400 mt-0.5">
+                        {agency.contactName} - {agency.contactEmail}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Created {formatDate(agency.createdAt)}
+                      </p>
                     </div>
                   </div>
-                </Card>
-              </Link>
-            ))}
 
-            {filteredAgencies.length === 0 && (
-              <Card className="bg-slate-800 border-slate-700 p-8 text-center">
-                <p className="text-slate-400">No agencies found matching your criteria.</p>
+                  <div className="flex items-center gap-6">
+                    <div className="text-center">
+                      <div className="flex items-center gap-1 text-slate-400">
+                        <Users className="w-4 h-4" />
+                        <span className="text-sm font-medium text-white">
+                          {agency.activeCarers}/{agency.totalCarers}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500">Carers</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="flex items-center gap-1 text-slate-400">
+                        <UserCheck className="w-4 h-4" />
+                        <span className="text-sm font-medium text-white">
+                          {agency.activeClients}/{agency.totalClients}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500">Clients</p>
+                    </div>
+                    <div className="text-center">
+                      <span className="text-sm font-medium text-amber-400">
+                        {agency.unreviewedAlerts}
+                      </span>
+                      <p className="text-xs text-slate-500">Unreviewed</p>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-slate-500" />
+                  </div>
+                </div>
               </Card>
-            )}
-          </div>
-        )}
+            </Link>
+          ))}
+
+          {filteredAgencies.length === 0 && (
+            <Card className="bg-slate-800 border-slate-700 p-8 text-center">
+              <p className="text-slate-400">No agencies found matching your criteria.</p>
+            </Card>
+          )}
+        </div>
       </main>
     </div>
   )

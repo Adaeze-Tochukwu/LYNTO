@@ -15,7 +15,6 @@ import {
   UserMinus,
   LogIn,
   AlertCircle,
-  Loader2,
 } from 'lucide-react'
 import type { ActivityEventType } from '@/types'
 
@@ -100,6 +99,14 @@ export function ActivityLogPage() {
     'admin_login',
     'admin_logout',
   ]
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -211,66 +218,60 @@ export function ActivityLogPage() {
           </div>
         </Card>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-          </div>
-        ) : (
-          /* Activity List */
-          <Card className="bg-slate-800 border-slate-700 p-4">
-            {filteredLogs.length > 0 ? (
-              <div className="space-y-1">
-                {filteredLogs.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="flex items-start gap-4 py-4 border-b border-slate-700 last:border-0"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0">
-                      {getEventIcon(entry.eventType)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <p className="text-sm text-white">
-                            <span className="font-medium">
-                              {formatEventType(entry.eventType)}
+        {/* Activity List */}
+        <Card className="bg-slate-800 border-slate-700 p-4">
+          {filteredLogs.length > 0 ? (
+            <div className="space-y-1">
+              {filteredLogs.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex items-start gap-4 py-4 border-b border-slate-700 last:border-0"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0">
+                    {getEventIcon(entry.eventType)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm text-white">
+                          <span className="font-medium">
+                            {formatEventType(entry.eventType)}
+                          </span>
+                          {entry.agencyName && (
+                            <span className="text-slate-400">
+                              {' '}
+                              - {entry.agencyName}
                             </span>
-                            {entry.agencyName && (
-                              <span className="text-slate-400">
-                                {' '}
-                                - {entry.agencyName}
-                              </span>
-                            )}
-                            {entry.entityName && (
-                              <span className="text-slate-400">
-                                : {entry.entityName}
-                              </span>
-                            )}
-                          </p>
-                          {entry.reason && (
-                            <p className="text-xs text-slate-500 mt-1">
-                              Reason: {entry.reason}
-                            </p>
                           )}
+                          {entry.entityName && (
+                            <span className="text-slate-400">
+                              : {entry.entityName}
+                            </span>
+                          )}
+                        </p>
+                        {entry.reason && (
                           <p className="text-xs text-slate-500 mt-1">
-                            Performed by {entry.performedByName}
+                            Reason: {entry.reason}
                           </p>
-                        </div>
-                        <span className="text-xs text-slate-500 whitespace-nowrap">
-                          {formatDate(entry.timestamp)}
-                        </span>
+                        )}
+                        <p className="text-xs text-slate-500 mt-1">
+                          Performed by {entry.performedByName}
+                        </p>
                       </div>
+                      <span className="text-xs text-slate-500 whitespace-nowrap">
+                        {formatDate(entry.timestamp)}
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-slate-400 text-center py-8">
-                No activity found matching your filters.
-              </p>
-            )}
-          </Card>
-        )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-slate-400 text-center py-8">
+              No activity found matching your filters.
+            </p>
+          )}
+        </Card>
       </main>
     </div>
   )

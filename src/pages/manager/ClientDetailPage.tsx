@@ -59,31 +59,43 @@ export function ClientDetailPage() {
     (c) => c.status === 'active' && !c.assignedClientIds.includes(client.id)
   )
 
-  const handleAssign = () => {
+  const handleAssign = async () => {
     if (!selectedCarerId) return
-    assignCarerToClient(client.id, selectedCarerId)
-    setSelectedCarerId('')
-    setShowAssignModal(false)
-  }
-
-  const handleUnassign = (carerId: string) => {
-    unassignCarerFromClient(client.id, carerId)
-  }
-
-  const handleStatusChange = () => {
-    if (client.status === 'active') {
-      updateClientStatus(
-        client.id,
-        'inactive',
-        deactivationReason as ClientDeactivationReason,
-        deactivationNote
-      )
-    } else {
-      updateClientStatus(client.id, 'active')
+    try {
+      await assignCarerToClient(client.id, selectedCarerId)
+      setSelectedCarerId('')
+      setShowAssignModal(false)
+    } catch (err) {
+      console.error('Failed to assign carer:', err)
     }
-    setShowStatusModal(false)
-    setDeactivationReason('')
-    setDeactivationNote('')
+  }
+
+  const handleUnassign = async (carerId: string) => {
+    try {
+      await unassignCarerFromClient(client.id, carerId)
+    } catch (err) {
+      console.error('Failed to unassign carer:', err)
+    }
+  }
+
+  const handleStatusChange = async () => {
+    try {
+      if (client.status === 'active') {
+        await updateClientStatus(
+          client.id,
+          'inactive',
+          deactivationReason as ClientDeactivationReason,
+          deactivationNote
+        )
+      } else {
+        await updateClientStatus(client.id, 'active')
+      }
+      setShowStatusModal(false)
+      setDeactivationReason('')
+      setDeactivationNote('')
+    } catch (err) {
+      console.error('Failed to update client status:', err)
+    }
   }
 
   return (

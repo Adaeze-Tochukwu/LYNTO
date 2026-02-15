@@ -77,8 +77,10 @@ export function AlertDetailPage() {
     setLoading(true)
 
     try {
-      reviewAlert(alert.id, user.id, actionTaken as AlertActionTaken, managerNote)
+      await reviewAlert(alert.id, user.id, actionTaken as AlertActionTaken, managerNote)
       navigate('/manager/alerts')
+    } catch (err) {
+      console.error('Failed to review alert:', err)
     } finally {
       setLoading(false)
     }

@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { MobileLayout } from '@/components/layout'
 import { Card, Button, Input } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
 import { Heart } from 'lucide-react'
 
 export function LoginPage() {
-  const navigate = useNavigate()
   const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -19,14 +18,11 @@ export function LoginPage() {
     setLoading(true)
 
     try {
-      const result = await login(email, password)
-      if (result.success) {
-        // Navigation will be handled by auth state change
-        // For now, check role from response or redirect to a common entry point
-        navigate('/manager')
-      } else {
-        setError(result.error || 'Invalid email or password. Please try again.')
+      const success = await login(email, password)
+      if (!success) {
+        setError('Invalid email or password. Please try again.')
       }
+      // On success, AuthRoute will automatically redirect based on role
     } catch {
       setError('Something went wrong. Please try again.')
     } finally {
@@ -80,7 +76,7 @@ export function LoginPage() {
           </form>
         </Card>
 
-        <div className="text-center mt-6 space-y-3">
+        <div className="text-center mt-6">
           <p className="text-sm text-slate-500">
             Don't have an agency yet?{' '}
             <Link
@@ -90,13 +86,6 @@ export function LoginPage() {
               Register Agency
             </Link>
           </p>
-
-          {/* Setup note */}
-          <div className="text-xs text-slate-400 mt-4 p-3 bg-slate-100 rounded-xl">
-            <p className="font-medium mb-1">Getting Started:</p>
-            <p>Register your agency to create a manager account,</p>
-            <p>or sign in with your credentials.</p>
-          </div>
         </div>
       </div>
     </MobileLayout>

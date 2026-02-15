@@ -30,7 +30,9 @@ export function CarersPage() {
   const pendingCount = carers.filter((c) => c.status === 'pending').length
   const totalCount = carers.length
 
-  const handleAddCarer = () => {
+  const [addingCarer, setAddingCarer] = useState(false)
+
+  const handleAddCarer = async () => {
     if (!newCarerName.trim() || !newCarerEmail.trim()) return
 
     if (!isCompanyEmail(newCarerEmail)) {
@@ -38,16 +40,23 @@ export function CarersPage() {
       return
     }
 
-    addCarer(newCarerName.trim(), newCarerEmail.trim())
-    setInviteSent(true)
+    setAddingCarer(true)
+    try {
+      await addCarer(newCarerName.trim(), newCarerEmail.trim())
+      setInviteSent(true)
 
-    setTimeout(() => {
-      setNewCarerName('')
-      setNewCarerEmail('')
-      setEmailError('')
-      setShowAddModal(false)
-      setInviteSent(false)
-    }, 2000)
+      setTimeout(() => {
+        setNewCarerName('')
+        setNewCarerEmail('')
+        setEmailError('')
+        setShowAddModal(false)
+        setInviteSent(false)
+      }, 2000)
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : 'Failed to invite carer')
+    } finally {
+      setAddingCarer(false)
+    }
   }
 
   const getStatusBadge = (status: string) => {
@@ -240,6 +249,7 @@ export function CarersPage() {
                 fullWidth
                 onClick={handleAddCarer}
                 disabled={!newCarerName.trim() || !newCarerEmail.trim()}
+                loading={addingCarer}
               >
                 Send Invite
               </Button>
