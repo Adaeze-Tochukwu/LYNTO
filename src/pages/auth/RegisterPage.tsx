@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom'
 import { MobileLayout } from '@/components/layout'
 import { Card, Button, Input, Checkbox } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
-import { isCompanyEmail } from '@/lib/utils'
 import { Heart, ArrowLeft } from 'lucide-react'
 
 export function RegisterPage() {
@@ -31,8 +30,6 @@ export function RegisterPage() {
 
     if (!email.trim()) {
       newErrors.email = 'Email is required'
-    } else if (!isCompanyEmail(email)) {
-      newErrors.email = 'Please use a company email address (not Gmail, Yahoo, etc.)'
     }
 
     if (!password) {
@@ -116,13 +113,12 @@ export function RegisterPage() {
             />
 
             <Input
-              label="Company Email"
+              label="Email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@yourcompany.co.uk"
+              placeholder="you@example.com"
               error={errors.email}
-              hint="Must be a company email address"
               required
             />
 
