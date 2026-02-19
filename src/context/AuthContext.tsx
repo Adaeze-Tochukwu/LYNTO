@@ -46,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    setIsLoading(true)
     try {
       // Use RPC to get profile (bypasses RLS chicken-and-egg problem)
       const { data: profileData, error: profileError } = await supabase.rpc('get_my_profile')
