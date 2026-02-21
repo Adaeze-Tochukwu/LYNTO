@@ -46,6 +46,7 @@ interface AdminContextType {
   approveAgency: (agencyId: string) => Promise<void>
   rejectAgency: (agencyId: string, reason: string) => Promise<void>
   inviteAdmin: (email: string, fullName: string, adminRole: PlatformAdmin['adminRole']) => Promise<void>
+  resendAdminInvite: (email: string) => Promise<void>
   updateAdminStatus: (adminId: string, status: 'active' | 'inactive', reason?: string) => Promise<void>
 }
 
@@ -275,6 +276,17 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     [admin]
   )
 
+  const resendAdminInvite = useCallback(
+    async (email: string): Promise<void> => {
+      const freshClient = createFreshClient()
+      const { error } = await freshClient.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/set-password`,
+      })
+      if (error) throw error
+    },
+    []
+  )
+
   const updateAdminStatus = useCallback(
     async (adminId: string, status: 'active' | 'inactive', reason?: string): Promise<void> => {
       const updates: Record<string, unknown> = { status }
@@ -336,6 +348,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     approveAgency,
     rejectAgency,
     inviteAdmin,
+    resendAdminInvite,
     updateAdminStatus,
   }
 

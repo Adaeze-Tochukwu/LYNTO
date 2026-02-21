@@ -12,13 +12,14 @@ import {
   Eye,
   Mail,
   Calendar,
+  Send,
 } from 'lucide-react'
 import type { AdminRole, UserStatus } from '@/types'
 
 export function AdminsPage() {
   const admin = useAdmin()
   const { logout, isPrimaryAdmin } = useAuth()
-  const { admins, inviteAdmin, updateAdminStatus, isLoading } = useAdminData()
+  const { admins, inviteAdmin, resendAdminInvite, updateAdminStatus, isLoading } = useAdminData()
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteName, setInviteName] = useState('')
@@ -26,6 +27,8 @@ export function AdminsPage() {
   const [inviting, setInviting] = useState(false)
   const [inviteSuccess, setInviteSuccess] = useState(false)
   const [inviteError, setInviteError] = useState('')
+  const [resendingId, setResendingId] = useState<string | null>(null)
+  const [resentId, setResentId] = useState<string | null>(null)
 
   const getStatusBadge = (status: UserStatus) => {
     switch (status) {
@@ -107,6 +110,19 @@ export function AdminsPage() {
       setInviteError(err instanceof Error ? err.message : 'Failed to invite admin')
     } finally {
       setInviting(false)
+    }
+  }
+
+  const handleResendInvite = async (adminUser: { id: string; email: string }) => {
+    setResendingId(adminUser.id)
+    try {
+      await resendAdminInvite(adminUser.email)
+      setResentId(adminUser.id)
+      setTimeout(() => setResentId(null), 3000)
+    } catch (err) {
+      console.error('Failed to resend invite:', err)
+    } finally {
+      setResendingId(null)
     }
   }
 
@@ -256,6 +272,22 @@ export function AdminsPage() {
 
                   {isPrimaryAdmin && adminUser.adminRole !== 'primary_admin' && (
                     <div className="flex gap-2">
+                      {adminUser.status === 'pending' && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border-indigo-600/30"
+                          onClick={() => handleResendInvite(adminUser)}
+                          disabled={resendingId === adminUser.id}
+                        >
+                          <Send className="w-3.5 h-3.5 mr-1.5" />
+                          {resendingId === adminUser.id
+                            ? 'Sending...'
+                            : resentId === adminUser.id
+                              ? 'Sent!'
+                              : 'Resend Invite'}
+                        </Button>
+                      )}
                       <Button
                         variant="secondary"
                         size="sm"
