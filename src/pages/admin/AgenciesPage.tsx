@@ -215,93 +215,92 @@ export function AgenciesPage() {
         {/* Agencies List */}
         <div className="space-y-3">
           {filteredAgencies.map((agency) => (
-            <Link key={agency.id} to={`/admin/agencies/${agency.id}`}>
-              <Card className="bg-slate-800 border-slate-700 p-4 hover:bg-slate-750 hover:border-slate-600 transition-colors cursor-pointer">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                      <Building2 className="w-6 h-6 text-blue-400" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-white">{agency.name}</h3>
-                        {getStatusBadge(agency.status)}
-                      </div>
-                      <p className="text-sm text-slate-400 mt-0.5">
-                        {agency.contactName} - {agency.contactEmail}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Created {formatDate(agency.createdAt)}
-                      </p>
-                    </div>
+            <Card key={agency.id} className="bg-slate-800 border-slate-700 p-4">
+              {/* Top row: info + stats + nav */}
+              <Link to={`/admin/agencies/${agency.id}`} className="flex items-center justify-between group">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                    <Building2 className="w-6 h-6 text-blue-400" />
                   </div>
-
-                  <div className="flex items-center gap-6">
-                    <div className="text-center">
-                      <div className="flex items-center gap-1 text-slate-400">
-                        <Users className="w-4 h-4" />
-                        <span className="text-sm font-medium text-white">
-                          {agency.activeCarers}/{agency.totalCarers}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500">Carers</p>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-white group-hover:text-indigo-300 transition-colors">{agency.name}</h3>
+                      {getStatusBadge(agency.status)}
                     </div>
-                    <div className="text-center">
-                      <div className="flex items-center gap-1 text-slate-400">
-                        <UserCheck className="w-4 h-4" />
-                        <span className="text-sm font-medium text-white">
-                          {agency.activeClients}/{agency.totalClients}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500">Clients</p>
-                    </div>
-                    <div className="text-center">
-                      <span className="text-sm font-medium text-amber-400">
-                        {agency.unreviewedAlerts}
-                      </span>
-                      <p className="text-xs text-slate-500">Unreviewed</p>
-                    </div>
-                    {agency.status === 'pending' && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={(e) => handleApprove(e, agency.id)}
-                          disabled={actionLoading === agency.id}
-                          className="p-2 rounded-lg bg-green-500/20 hover:bg-green-500/30 text-green-400 transition-colors disabled:opacity-50"
-                          title="Approve"
-                        >
-                          <CheckCircle className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            setRejectingId(agency.id)
-                          }}
-                          disabled={actionLoading === agency.id}
-                          className="p-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors disabled:opacity-50"
-                          title="Reject"
-                        >
-                          <XCircle className="w-5 h-5" />
-                        </button>
-                      </div>
-                    )}
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setDeletingId(agency.id)
-                      }}
-                      disabled={actionLoading === agency.id}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/40 text-red-400 hover:text-red-300 text-sm font-medium transition-colors disabled:opacity-50"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Delete
-                    </button>
-                    <ChevronRight className="w-5 h-5 text-slate-500" />
+                    <p className="text-sm text-slate-400 mt-0.5">
+                      {agency.contactName} - {agency.contactEmail}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Created {formatDate(agency.createdAt)}
+                    </p>
                   </div>
                 </div>
-              </Card>
-            </Link>
+                <div className="flex items-center gap-6">
+                  <div className="text-center">
+                    <div className="flex items-center gap-1 text-slate-400">
+                      <Users className="w-4 h-4" />
+                      <span className="text-sm font-medium text-white">
+                        {agency.activeCarers}/{agency.totalCarers}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500">Carers</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="flex items-center gap-1 text-slate-400">
+                      <UserCheck className="w-4 h-4" />
+                      <span className="text-sm font-medium text-white">
+                        {agency.activeClients}/{agency.totalClients}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500">Clients</p>
+                  </div>
+                  <div className="text-center">
+                    <span className="text-sm font-medium text-amber-400">
+                      {agency.unreviewedAlerts}
+                    </span>
+                    <p className="text-xs text-slate-500">Unreviewed</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-500" />
+                </div>
+              </Link>
+
+              {/* Bottom row: action buttons */}
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-700">
+                <div className="flex items-center gap-2">
+                  {agency.status === 'pending' && (
+                    <>
+                      <button
+                        onClick={(e) => handleApprove(e, agency.id)}
+                        disabled={actionLoading === agency.id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/20 hover:bg-green-500/30 text-green-400 text-sm font-medium transition-colors disabled:opacity-50"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        Approve
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setRejectingId(agency.id)
+                        }}
+                        disabled={actionLoading === agency.id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-sm font-medium transition-colors disabled:opacity-50"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        Reject
+                      </button>
+                    </>
+                  )}
+                </div>
+                <button
+                  onClick={() => setDeletingId(agency.id)}
+                  disabled={actionLoading === agency.id}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/40 text-red-400 hover:text-red-300 text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Agency
+                </button>
+              </div>
+            </Card>
           ))}
 
           {filteredAgencies.length === 0 && (
