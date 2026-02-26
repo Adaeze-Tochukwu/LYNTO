@@ -14,18 +14,20 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  Trash2,
 } from 'lucide-react'
 import type { AgencyStatus } from '@/types'
 
 export function AgenciesPage() {
   const admin = useAdmin()
   const { logout } = useAuth()
-  const { agencies, isLoading, approveAgency, rejectAgency } = useAdminData()
+  const { agencies, isLoading, approveAgency, rejectAgency, deleteAgency } = useAdminData()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<AgencyStatus | 'all'>('all')
   const [rejectingId, setRejectingId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const pendingCount = agencies.filter((a) => a.status === 'pending').length
 
@@ -78,6 +80,18 @@ export function AgenciesPage() {
       setRejectReason('')
     } catch (err) {
       console.error('Failed to reject agency:', err)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleDeleteConfirm = async (agencyId: string) => {
+    setActionLoading(agencyId)
+    try {
+      await deleteAgency(agencyId)
+      setDeletingId(null)
+    } catch (err) {
+      console.error('Failed to delete agency:', err)
     } finally {
       setActionLoading(null)
     }
@@ -271,6 +285,18 @@ export function AgenciesPage() {
                         </button>
                       </div>
                     )}
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setDeletingId(agency.id)
+                      }}
+                      disabled={actionLoading === agency.id}
+                      className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/25 text-red-500 hover:text-red-400 transition-colors disabled:opacity-50"
+                      title="Delete agency"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                     <ChevronRight className="w-5 h-5 text-slate-500" />
                   </div>
                 </div>
@@ -285,6 +311,51 @@ export function AgenciesPage() {
           )}
         </div>
       </main>
+
+      {/* Delete Confirmation Modal */}
+      {deletingId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="bg-slate-800 border-slate-700 p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-red-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-white">Delete Agency</h3>
+            </div>
+            <p className="text-sm text-slate-300 mb-1">
+              Are you sure you want to permanently delete{' '}
+              <span className="font-semibold text-white">
+                {agencies.find((a) => a.id === deletingId)?.name}
+              </span>
+              ?
+            </p>
+            <p className="text-sm text-red-400 mb-5">
+              All carers, clients, visit entries, alerts, and history will be removed. This cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeletingId(null)}
+                disabled={!!actionLoading}
+                className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteConfirm(deletingId)}
+                disabled={!!actionLoading}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {actionLoading ? (
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
+                Delete Agency
+              </button>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Reject Modal */}
       {rejectingId && (

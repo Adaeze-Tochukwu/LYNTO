@@ -217,8 +217,10 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 
   const deleteAgency = useCallback(
     async (agencyId: string): Promise<void> => {
-      const agency = agencies.find((a) => a.id === agencyId)
+      // Delete activity_log first — no ON DELETE CASCADE on that FK
+      await supabase.from('activity_log').delete().eq('agency_id', agencyId)
 
+      // Delete the agency — cascades to users, clients, alerts, visit_entries, etc.
       const { error } = await supabase
         .from('agencies')
         .delete()
@@ -226,22 +228,9 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error
 
-      // Remove from local state
       setAgencies((prev) => prev.filter((a) => a.id !== agencyId))
-
-      // Log activity
-      if (admin && agency) {
-        await supabase.from('activity_log').insert({
-          event_type: 'agency_deleted',
-          agency_id: agencyId,
-          agency_name: agency.name,
-          performed_by: admin.id,
-          performed_by_name: admin.fullName,
-          reason: 'Agency permanently deleted',
-        })
-      }
     },
-    [admin, agencies]
+    []
   )
 
   const inviteAdmin = useCallback(
