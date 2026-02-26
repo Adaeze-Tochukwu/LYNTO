@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
+  Trash2,
 } from 'lucide-react'
 import type { AgencyStatus, Carer, Client } from '@/types'
 
@@ -33,6 +34,7 @@ export function AgencyDetailPage() {
     updateAgencyStatus,
     approveAgency,
     rejectAgency,
+    deleteAgency,
     isLoading,
   } = useAdminData()
   const [activeTab, setActiveTab] = useState<'overview' | 'carers' | 'clients' | 'activity'>(
@@ -49,6 +51,8 @@ export function AgencyDetailPage() {
   const [showRejectModal, setShowRejectModal] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
   const [approving, setApproving] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const agency = getAgencyById(id || '')
   const agencyActivity = id ? getActivityForAgency(id).slice(0, 10) : []
@@ -150,6 +154,19 @@ export function AgencyDetailPage() {
       console.error('Failed to reject agency:', err)
     } finally {
       setUpdatingStatus(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!id) return
+    setDeleting(true)
+    try {
+      await deleteAgency(id)
+      navigate('/admin/agencies')
+    } catch (err) {
+      console.error('Failed to delete agency:', err)
+      setDeleting(false)
+      setShowDeleteModal(false)
     }
   }
 
@@ -315,6 +332,15 @@ export function AgencyDetailPage() {
                 }}
               >
                 Change Status
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="bg-red-600/20 hover:bg-red-600/30 text-red-400 border-red-600/30"
+                onClick={() => setShowDeleteModal(true)}
+              >
+                <Trash2 className="w-4 h-4 mr-1.5" />
+                Delete
               </Button>
             </div>
           </div>
@@ -643,6 +669,43 @@ export function AgencyDetailPage() {
                   loading={updatingStatus}
                 >
                   Reject Agency
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Delete Agency Modal */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <Card className="bg-slate-800 border-slate-700 p-6 max-w-md w-full mx-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-white">Delete Agency</h3>
+              </div>
+              <p className="text-sm text-slate-300 mb-2">
+                Are you sure you want to permanently delete{' '}
+                <span className="font-semibold text-white">{agency.name}</span>?
+              </p>
+              <p className="text-sm text-red-400 mb-6">
+                This will also delete all associated carers, clients, visit entries, and alerts. This action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <Button
+                  onClick={() => setShowDeleteModal(false)}
+                  variant="secondary"
+                  className="bg-slate-700 hover:bg-slate-600 text-white border-slate-600"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleDelete}
+                  className="bg-red-600 hover:bg-red-700"
+                  loading={deleting}
+                >
+                  Delete Agency
                 </Button>
               </div>
             </Card>

@@ -45,6 +45,7 @@ interface AdminContextType {
   getClientsForAgency: (agencyId: string) => Promise<Client[]>
   approveAgency: (agencyId: string) => Promise<void>
   rejectAgency: (agencyId: string, reason: string) => Promise<void>
+  deleteAgency: (agencyId: string) => Promise<void>
   inviteAdmin: (email: string, fullName: string, adminRole: PlatformAdmin['adminRole']) => Promise<void>
   resendAdminInvite: (email: string) => Promise<void>
   updateAdminStatus: (adminId: string, status: 'active' | 'inactive', reason?: string) => Promise<void>
@@ -214,6 +215,35 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     [loadData]
   )
 
+  const deleteAgency = useCallback(
+    async (agencyId: string): Promise<void> => {
+      const agency = agencies.find((a) => a.id === agencyId)
+
+      const { error } = await supabase
+        .from('agencies')
+        .delete()
+        .eq('id', agencyId)
+
+      if (error) throw error
+
+      // Remove from local state
+      setAgencies((prev) => prev.filter((a) => a.id !== agencyId))
+
+      // Log activity
+      if (admin && agency) {
+        await supabase.from('activity_log').insert({
+          event_type: 'agency_deleted',
+          agency_id: agencyId,
+          agency_name: agency.name,
+          performed_by: admin.id,
+          performed_by_name: admin.fullName,
+          reason: 'Agency permanently deleted',
+        })
+      }
+    },
+    [admin, agencies]
+  )
+
   const inviteAdmin = useCallback(
     async (email: string, fullName: string, adminRole: PlatformAdmin['adminRole']): Promise<void> => {
       // 1. Create auth user with random password
@@ -347,6 +377,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     getClientsForAgency,
     approveAgency,
     rejectAgency,
+    deleteAgency,
     inviteAdmin,
     resendAdminInvite,
     updateAdminStatus,
