@@ -292,10 +292,10 @@ export function AgenciesPage() {
                         setDeletingId(agency.id)
                       }}
                       disabled={actionLoading === agency.id}
-                      className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/25 text-red-500 hover:text-red-400 transition-colors disabled:opacity-50"
-                      title="Delete agency"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/40 text-red-400 hover:text-red-300 text-sm font-medium transition-colors disabled:opacity-50"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete
                     </button>
                     <ChevronRight className="w-5 h-5 text-slate-500" />
                   </div>
