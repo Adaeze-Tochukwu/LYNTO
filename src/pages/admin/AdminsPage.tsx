@@ -159,7 +159,7 @@ export function AdminsPage() {
       <header className="bg-slate-800 border-b border-slate-700 px-4 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Logo className="h-10 w-auto" />
+            <Logo className="h-10 w-auto bg-white rounded-lg p-1" />
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-300">{admin?.fullName}</span>
