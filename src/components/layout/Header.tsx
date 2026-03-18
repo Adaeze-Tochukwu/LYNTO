@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { ArrowLeft, LogOut, Menu } from 'lucide-react'
-import { Button } from '@/components/ui'
+import { Button, Logo } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
 
 interface HeaderProps {
@@ -60,7 +60,7 @@ export function Header({
               <Menu className="w-5 h-5" />
             </Button>
           )}
-          <img src="/logo.png" alt="Lynto" className="h-8 w-auto" />
+          <Logo className="h-8 w-auto" />
           <div>
             <h1 className="text-lg font-semibold text-slate-800">{title}</h1>
             {user && (

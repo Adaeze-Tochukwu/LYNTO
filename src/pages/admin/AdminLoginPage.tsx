@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { MobileLayout } from '@/components/layout'
 import { Card, Button, Input } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
+import { Logo } from '@/components/ui'
 
 export function AdminLoginPage() {
   const navigate = useNavigate()
@@ -55,7 +56,7 @@ export function AdminLoginPage() {
       <div className="w-full max-w-sm animate-fade-in">
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src="/logo.png" alt="Lynto" className="h-16 w-auto mx-auto mb-4" />
+          <Logo className="h-16 w-auto mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-white">Admin Portal</h1>
           <p className="text-slate-400 mt-2">LYNTO Platform Administration</p>
         </div>

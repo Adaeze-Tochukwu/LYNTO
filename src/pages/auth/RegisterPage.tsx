@@ -4,6 +4,7 @@ import { MobileLayout } from '@/components/layout'
 import { Card, Button, Input, Checkbox } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
 import { ArrowLeft, CheckCircle } from 'lucide-react'
+import { Logo } from '@/components/ui'
 
 export function RegisterPage() {
   const { registerAgency } = useAuth()
@@ -116,7 +117,7 @@ export function RegisterPage() {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src="/logo.png" alt="Lynto" className="h-14 w-auto mx-auto mb-3" />
+          <Logo className="h-14 w-auto mx-auto mb-3" />
           <h1 className="text-xl font-bold text-slate-800">Register Your Agency</h1>
           <p className="text-sm text-slate-500 mt-1">Start monitoring with Lynto</p>
         </div>

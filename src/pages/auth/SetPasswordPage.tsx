@@ -4,6 +4,7 @@ import { MobileLayout } from '@/components/layout'
 import { Card, Button, Input } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
 import { CheckCircle } from 'lucide-react'
+import { Logo } from '@/components/ui'
 
 export function SetPasswordPage() {
   const navigate = useNavigate()
@@ -105,7 +106,7 @@ export function SetPasswordPage() {
     <MobileLayout className="flex flex-col justify-center items-center">
       <div className="w-full max-w-sm animate-fade-in">
         <div className="text-center mb-8">
-          <img src="/logo.png" alt="Lynto" className="h-16 w-auto mx-auto mb-4" />
+          <Logo className="h-16 w-auto mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-slate-800">Welcome to Lynto</h1>
           <p className="text-slate-500 mt-1">Set a password to activate your account</p>
           {userEmail && (

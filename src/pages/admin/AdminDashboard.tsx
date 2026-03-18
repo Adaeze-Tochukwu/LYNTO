@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Card } from '@/components/ui'
+import { Card, Logo } from '@/components/ui'
 import { useAdmin, useAuth } from '@/context/AuthContext'
 import { useAdminData } from '@/context/AdminContext'
 import {
@@ -67,7 +67,7 @@ export function AdminDashboard() {
       <header className="bg-slate-800 border-b border-slate-700 px-4 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Lynto" className="h-10 w-auto" />
+            <Logo className="h-10 w-auto" />
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-300">{admin?.fullName}</span>

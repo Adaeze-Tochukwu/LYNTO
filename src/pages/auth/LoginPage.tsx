@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MobileLayout } from '@/components/layout'
+import { Logo } from '@/components/ui'
 import { Card, Button, Input } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
 
@@ -52,7 +53,7 @@ export function LoginPage() {
       <div className="w-full max-w-sm animate-fade-in">
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src="/logo.png" alt="Lynto" className="h-16 w-auto mx-auto mb-2" />
+          <Logo className="h-16 w-auto mx-auto mb-2" />
           <p className="text-slate-500 mt-1">Clinical Patient Monitoring</p>
         </div>
 
