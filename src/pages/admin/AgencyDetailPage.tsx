@@ -4,7 +4,6 @@ import { Card, Button, Badge } from '@/components/ui'
 import { useAdmin, useAuth } from '@/context/AuthContext'
 import { useAdminData } from '@/context/AdminContext'
 import {
-  Shield,
   LogOut,
   ArrowLeft,
   Building2,

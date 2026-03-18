@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { MobileLayout } from '@/components/layout'
 import { Card, Button, Input } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
-import { Heart } from 'lucide-react'
 
 export function LoginPage() {
   const { login, forgotPassword } = useAuth()

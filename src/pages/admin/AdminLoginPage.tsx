@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { MobileLayout } from '@/components/layout'
 import { Card, Button, Input } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
-import { Shield } from 'lucide-react'
 
 export function AdminLoginPage() {
   const navigate = useNavigate()

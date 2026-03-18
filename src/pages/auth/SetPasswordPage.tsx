@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { MobileLayout } from '@/components/layout'
 import { Card, Button, Input } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
-import { CheckCircle, Heart } from 'lucide-react'
+import { CheckCircle } from 'lucide-react'
 
 export function SetPasswordPage() {
   const navigate = useNavigate()

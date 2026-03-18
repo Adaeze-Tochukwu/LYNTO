@@ -8,7 +8,6 @@ import {
   UserCheck,
   Bell,
   Activity,
-  Shield,
   LogOut,
   ChevronRight,
 } from 'lucide-react'

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { MobileLayout } from '@/components/layout'
 import { Card, Button, Input, Checkbox } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
-import { Heart, ArrowLeft, CheckCircle } from 'lucide-react'
+import { ArrowLeft, CheckCircle } from 'lucide-react'
 
 export function RegisterPage() {
   const { registerAgency } = useAuth()
