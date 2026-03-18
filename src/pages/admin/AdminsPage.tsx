@@ -159,13 +159,7 @@ export function AdminsPage() {
       <header className="bg-slate-800 border-b border-slate-700 px-4 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center">
-              <Shield className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-white">LYNTO Admin</h1>
-              <p className="text-xs text-slate-400">Platform Administration</p>
-            </div>
+            <img src="/logo.png" alt="Lynto" className="h-10 w-auto" />
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-300">{admin?.fullName}</span>

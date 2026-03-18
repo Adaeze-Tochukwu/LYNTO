@@ -60,6 +60,7 @@ export function Header({
               <Menu className="w-5 h-5" />
             </Button>
           )}
+          <img src="/logo.png" alt="Lynto" className="h-8 w-auto" />
           <div>
             <h1 className="text-lg font-semibold text-slate-800">{title}</h1>
             {user && (

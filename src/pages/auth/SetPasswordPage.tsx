@@ -105,9 +105,7 @@ export function SetPasswordPage() {
     <MobileLayout className="flex flex-col justify-center items-center">
       <div className="w-full max-w-sm animate-fade-in">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary-500 mb-4">
-            <Heart className="w-8 h-8 text-white" />
-          </div>
+          <img src="/logo.png" alt="Lynto" className="h-16 w-auto mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-slate-800">Welcome to Lynto</h1>
           <p className="text-slate-500 mt-1">Set a password to activate your account</p>
           {userEmail && (

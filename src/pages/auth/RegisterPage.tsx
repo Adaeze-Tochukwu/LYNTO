@@ -116,9 +116,7 @@ export function RegisterPage() {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-500 mb-3">
-            <Heart className="w-7 h-7 text-white" />
-          </div>
+          <img src="/logo.png" alt="Lynto" className="h-14 w-auto mx-auto mb-3" />
           <h1 className="text-xl font-bold text-slate-800">Register Your Agency</h1>
           <p className="text-sm text-slate-500 mt-1">Start monitoring with Lynto</p>
         </div>
