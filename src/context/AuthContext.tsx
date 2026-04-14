@@ -27,7 +27,19 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>
   adminLogin: (email: string, password: string) => Promise<boolean>
   logout: () => void
-  registerAgency: (agencyName: string, fullName: string, email: string, password: string) => Promise<boolean>
+  registerAgency: (
+    agencyName: string,
+    fullName: string,
+    email: string,
+    password: string,
+    phone: string,
+    position: string,
+    addressLine1: string,
+    countryUk: string,
+    region: string,
+    council: string,
+    postcode: string
+  ) => Promise<boolean>
   forgotPassword: (email: string) => Promise<void>
 }
 
@@ -184,7 +196,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [admin])
 
   const registerAgency = useCallback(
-    async (agencyName: string, fullName: string, email: string, password: string): Promise<boolean> => {
+    async (
+      agencyName: string,
+      fullName: string,
+      email: string,
+      password: string,
+      phone: string,
+      position: string,
+      addressLine1: string,
+      countryUk: string,
+      region: string,
+      council: string,
+      postcode: string
+    ): Promise<boolean> => {
       // 1. Create auth user
       const { error: signUpError } = await supabase.auth.signUp({
         email,
@@ -201,6 +225,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         p_agency_name: agencyName,
         p_full_name: fullName,
         p_email: email,
+        p_phone: phone,
+        p_position: position,
+        p_address_line1: addressLine1,
+        p_country_uk: countryUk,
+        p_region: region,
+        p_council: council,
+        p_postcode: postcode,
       })
 
       if (rpcError) {

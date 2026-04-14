@@ -38,6 +38,13 @@ create table agencies (
   status agency_status not null default 'active',
   contact_email text,
   contact_name text,
+  contact_phone text,
+  contact_position text,
+  address_line1 text,
+  country_uk text,
+  region text,
+  council text,
+  postcode text,
   notes text,
   rejection_reason text,
   created_at timestamptz not null default now(),
@@ -229,6 +236,13 @@ select
   a.status,
   a.contact_email,
   a.contact_name,
+  a.contact_phone,
+  a.contact_position,
+  a.address_line1,
+  a.country_uk,
+  a.region,
+  a.council,
+  a.postcode,
   a.notes,
   a.rejection_reason,
   a.created_at,
@@ -251,7 +265,14 @@ from agencies a;
 create or replace function register_agency(
   p_agency_name text,
   p_full_name text,
-  p_email text
+  p_email text,
+  p_phone text default null,
+  p_position text default null,
+  p_address_line1 text default null,
+  p_country_uk text default null,
+  p_region text default null,
+  p_council text default null,
+  p_postcode text default null
 )
 returns json as $$
 declare
@@ -270,8 +291,14 @@ begin
   end if;
 
   -- Create the agency (pending until admin approves)
-  insert into agencies (name, status, contact_email, contact_name)
-  values (p_agency_name, 'pending', p_email, p_full_name)
+  insert into agencies (
+    name, status, contact_email, contact_name, contact_phone, contact_position,
+    address_line1, country_uk, region, council, postcode
+  )
+  values (
+    p_agency_name, 'pending', p_email, p_full_name, p_phone, p_position,
+    p_address_line1, p_country_uk, p_region, p_council, p_postcode
+  )
   returning id into v_agency_id;
 
   -- Create the manager user (pending until agency is approved)
@@ -724,3 +751,16 @@ create index idx_alerts_created_at on alerts(created_at desc);
 create index idx_activity_log_agency_id on activity_log(agency_id);
 create index idx_activity_log_timestamp on activity_log(timestamp desc);
 create index idx_correction_notes_visit_entry_id on correction_notes(visit_entry_id);
+
+-- ============================================
+-- MIGRATION: Run these if applying to an existing database
+-- (skip if running the full schema fresh)
+-- ============================================
+
+-- alter table agencies add column if not exists contact_phone text;
+-- alter table agencies add column if not exists contact_position text;
+-- alter table agencies add column if not exists address_line1 text;
+-- alter table agencies add column if not exists country_uk text;
+-- alter table agencies add column if not exists region text;
+-- alter table agencies add column if not exists council text;
+-- alter table agencies add column if not exists postcode text;

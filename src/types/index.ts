@@ -35,6 +35,13 @@ export interface Agency {
   name: string
   createdAt: string
   managerId: string
+  contactPhone?: string
+  contactPosition?: string
+  addressLine1?: string
+  countryUk?: string
+  region?: string
+  council?: string
+  postcode?: string
 }
 
 // Client
@@ -163,6 +170,13 @@ export interface AgencyWithStats extends Agency {
   status: AgencyStatus
   contactEmail: string
   contactName: string
+  contactPhone: string
+  contactPosition: string
+  addressLine1: string
+  countryUk: string
+  region: string
+  council: string
+  postcode: string
   totalCarers: number
   activeCarers: number
   totalClients: number

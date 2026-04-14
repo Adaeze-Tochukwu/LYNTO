@@ -6,6 +6,13 @@ export interface DbAgency {
   status: 'active' | 'inactive' | 'suspended' | 'pending' | 'rejected'
   contact_email: string | null
   contact_name: string | null
+  contact_phone: string | null
+  contact_position: string | null
+  address_line1: string | null
+  country_uk: string | null
+  region: string | null
+  council: string | null
+  postcode: string | null
   notes: string | null
   rejection_reason: string | null
   created_at: string
@@ -116,6 +123,13 @@ export interface DbAgencyStats {
   status: 'active' | 'inactive' | 'suspended' | 'pending' | 'rejected'
   contact_email: string | null
   contact_name: string | null
+  contact_phone: string | null
+  contact_position: string | null
+  address_line1: string | null
+  country_uk: string | null
+  region: string | null
+  council: string | null
+  postcode: string | null
   notes: string | null
   rejection_reason: string | null
   created_at: string
