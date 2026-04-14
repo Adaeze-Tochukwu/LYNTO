@@ -12,6 +12,7 @@ import {
 } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
 import { useApp } from '@/context/AppContext'
+import { supabase } from '@/lib/supabase'
 import { symptomCategories } from '@/data/symptoms'
 import { cn } from '@/lib/utils'
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
@@ -116,6 +117,17 @@ export function VisitEntryPage() {
           reasons: entry.reasons,
         })
         handleNext()
+
+        // Auto-call manager on red alert
+        if (entry.riskLevel === 'red') {
+          supabase.functions.invoke('notify-red-alert', {
+            body: {
+              clientName: client.displayName,
+              carerName: user.fullName,
+              agencyId: agency.id,
+            },
+          })
+        }
       }
     } finally {
       setSaving(false)
