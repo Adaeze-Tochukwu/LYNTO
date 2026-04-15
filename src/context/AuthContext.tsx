@@ -250,8 +250,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const forgotPassword = useCallback(async (email: string): Promise<void> => {
+    const appUrl = import.meta.env.VITE_APP_URL || window.location.origin
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/set-password`,
+      redirectTo: `${appUrl}/set-password`,
     })
     if (error) throw error
   }, [])

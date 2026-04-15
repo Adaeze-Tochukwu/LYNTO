@@ -431,8 +431,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (insertError) throw insertError
 
       // 3. Send password reset email (this is the "set password" email)
+      const appUrl = import.meta.env.VITE_APP_URL || window.location.origin
       await freshClient.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/set-password`,
+        redirectTo: `${appUrl}/set-password`,
       })
 
       // 4. Log activity
@@ -466,8 +467,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const resendInvite = useCallback(
     async (email: string): Promise<void> => {
       const freshClient = createFreshClient()
+      const appUrl = import.meta.env.VITE_APP_URL || window.location.origin
       const { error } = await freshClient.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/set-password`,
+        redirectTo: `${appUrl}/set-password`,
       })
       if (error) throw error
     },
