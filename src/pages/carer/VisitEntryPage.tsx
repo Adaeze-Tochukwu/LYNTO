@@ -126,6 +126,9 @@ export function VisitEntryPage() {
               carerName: user.fullName,
               agencyId: agency.id,
             },
+          }).then(({ data, error }) => {
+            if (error) console.error('notify-red-alert error:', error)
+            else console.log('notify-red-alert response:', data)
           })
         }
       }
