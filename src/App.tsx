@@ -138,6 +138,15 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   )
 }
 
+// Handles root path — forwards recovery/invite tokens to /set-password
+function RootRedirect() {
+  const hash = window.location.hash
+  if (hash.includes('type=recovery') || hash.includes('type=invite')) {
+    return <Navigate to={`/set-password${hash}`} replace />
+  }
+  return <Navigate to="/login" replace />
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -313,8 +322,8 @@ function AppRoutes() {
         }
       />
 
-      {/* Default redirect */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      {/* Default redirect — preserve recovery tokens in hash */}
+      <Route path="/" element={<RootRedirect />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   )
