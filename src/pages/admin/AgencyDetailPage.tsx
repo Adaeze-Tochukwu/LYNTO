@@ -16,6 +16,8 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import type { AgencyStatus, Carer, Client } from '@/types'
 
@@ -179,6 +181,17 @@ export function AgencyDetailPage() {
       .join(' ')
   }
 
+  const tabs = ['overview', 'carers', 'clients', 'activity'] as const
+  const tabLabels: Record<typeof tabs[number], string> = {
+    overview: 'Overview',
+    carers: `Carers (${agency?.totalCarers ?? 0})`,
+    clients: `Clients (${agency?.totalClients ?? 0})`,
+    activity: 'Activity Log',
+  }
+  const currentTabIndex = tabs.indexOf(activeTab)
+  const prevTab = currentTabIndex > 0 ? tabs[currentTabIndex - 1] : null
+  const nextTab = currentTabIndex < tabs.length - 1 ? tabs[currentTabIndex + 1] : null
+
   return (
     <div className="min-h-screen bg-slate-900">
       {/* Header */}
@@ -332,109 +345,122 @@ export function AgencyDetailPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-slate-800 border-slate-700 p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                <Users className="w-5 h-5 text-green-400" />
+          <button
+            onClick={() => setActiveTab('carers')}
+            className="text-left group"
+          >
+            <Card className="bg-slate-800 border-slate-700 p-4 group-hover:border-green-500/50 group-hover:bg-slate-700/80 transition-colors cursor-pointer">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+                  <Users className="w-5 h-5 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">{agency.totalCarers}</p>
+                  <p className="text-xs text-slate-500">
+                    {agency.activeCarers} active / {agency.totalCarers - agency.activeCarers}{' '}
+                    inactive
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-white">{agency.totalCarers}</p>
-                <p className="text-xs text-slate-500">
-                  {agency.activeCarers} active / {agency.totalCarers - agency.activeCarers}{' '}
-                  inactive
-                </p>
-              </div>
-            </div>
-            <p className="text-sm text-slate-400 mt-2">Total Carers</p>
-          </Card>
+              <p className="text-sm text-slate-400 mt-2">Total Carers</p>
+            </Card>
+          </button>
 
-          <Card className="bg-slate-800 border-slate-700 p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                <UserCheck className="w-5 h-5 text-purple-400" />
+          <button
+            onClick={() => setActiveTab('clients')}
+            className="text-left group"
+          >
+            <Card className="bg-slate-800 border-slate-700 p-4 group-hover:border-purple-500/50 group-hover:bg-slate-700/80 transition-colors cursor-pointer">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                  <UserCheck className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">{agency.totalClients}</p>
+                  <p className="text-xs text-slate-500">
+                    {agency.activeClients} active /{' '}
+                    {agency.totalClients - agency.activeClients} inactive
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-white">{agency.totalClients}</p>
-                <p className="text-xs text-slate-500">
-                  {agency.activeClients} active /{' '}
-                  {agency.totalClients - agency.activeClients} inactive
-                </p>
-              </div>
-            </div>
-            <p className="text-sm text-slate-400 mt-2">Total Clients</p>
-          </Card>
+              <p className="text-sm text-slate-400 mt-2">Total Clients</p>
+            </Card>
+          </button>
 
-          <Card className="bg-slate-800 border-slate-700 p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                <Bell className="w-5 h-5 text-amber-400" />
+          <button
+            onClick={() => setActiveTab('activity')}
+            className="text-left group"
+          >
+            <Card className="bg-slate-800 border-slate-700 p-4 group-hover:border-amber-500/50 group-hover:bg-slate-700/80 transition-colors cursor-pointer">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                  <Bell className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">{agency.totalAlerts}</p>
+                  <p className="text-xs text-slate-500">
+                    {agency.unreviewedAlerts} unreviewed
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-white">{agency.totalAlerts}</p>
-                <p className="text-xs text-slate-500">
-                  {agency.unreviewedAlerts} unreviewed
-                </p>
-              </div>
-            </div>
-            <p className="text-sm text-slate-400 mt-2">Total Alerts</p>
-          </Card>
+              <p className="text-sm text-slate-400 mt-2">Total Alerts</p>
+            </Card>
+          </button>
 
-          <Card className="bg-slate-800 border-slate-700 p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                <Activity className="w-5 h-5 text-blue-400" />
+          <button
+            onClick={() => setActiveTab('activity')}
+            className="text-left group"
+          >
+            <Card className="bg-slate-800 border-slate-700 p-4 group-hover:border-blue-500/50 group-hover:bg-slate-700/80 transition-colors cursor-pointer">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                  <Activity className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white">
+                    {agency.lastActivityAt ? formatDate(agency.lastActivityAt) : 'N/A'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-white">
-                  {agency.lastActivityAt ? formatDate(agency.lastActivityAt) : 'N/A'}
-                </p>
-              </div>
-            </div>
-            <p className="text-sm text-slate-400 mt-2">Last Activity</p>
-          </Card>
+              <p className="text-sm text-slate-400 mt-2">Last Activity</p>
+            </Card>
+          </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-6">
+        <div className="flex items-center gap-2 mb-6">
           <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              activeTab === 'overview'
-                ? 'bg-indigo-600 text-white'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
+            onClick={() => prevTab && setActiveTab(prevTab)}
+            disabled={!prevTab}
+            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            title={prevTab ? `Back to ${tabLabels[prevTab]}` : undefined}
           >
-            Overview
+            <ChevronLeft className="w-4 h-4" />
           </button>
+
+          <div className="flex gap-1 flex-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  activeTab === tab
+                    ? 'bg-indigo-600 text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                {tabLabels[tab]}
+              </button>
+            ))}
+          </div>
+
           <button
-            onClick={() => setActiveTab('carers')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              activeTab === 'carers'
-                ? 'bg-indigo-600 text-white'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
+            onClick={() => nextTab && setActiveTab(nextTab)}
+            disabled={!nextTab}
+            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            title={nextTab ? `Next: ${tabLabels[nextTab]}` : undefined}
           >
-            Carers ({agency.totalCarers})
-          </button>
-          <button
-            onClick={() => setActiveTab('clients')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              activeTab === 'clients'
-                ? 'bg-indigo-600 text-white'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
-          >
-            Clients ({agency.totalClients})
-          </button>
-          <button
-            onClick={() => setActiveTab('activity')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              activeTab === 'activity'
-                ? 'bg-indigo-600 text-white'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
-          >
-            Activity Log
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
 
