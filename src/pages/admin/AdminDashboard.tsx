@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, Logo } from '@/components/ui'
 import { useAdmin, useAuth } from '@/context/AuthContext'
@@ -10,14 +11,45 @@ import {
   Activity,
   LogOut,
   ChevronRight,
+  MapPin,
+  ChevronDown,
 } from 'lucide-react'
+
+type GeoEntry = { count: number; regions: Record<string, { count: number; councils: Record<string, number> }> }
 
 export function AdminDashboard() {
   const admin = useAdmin()
   const { logout } = useAuth()
   const { agencies, activityLog, isLoading } = useAdminData()
+  const [expandedCountry, setExpandedCountry] = useState<string | null>(null)
+  const [expandedRegion, setExpandedRegion] = useState<string | null>(null)
 
   const recentActivity = activityLog.slice(0, 5)
+
+  // Compute geographic breakdown from agencies data
+  const geoStats = agencies.reduce<Record<string, GeoEntry>>((acc, agency) => {
+    const country = agency.countryUk || 'Unknown'
+    const region = agency.region || 'Unknown'
+    const council = agency.council || 'Unknown'
+
+    if (!acc[country]) acc[country] = { count: 0, regions: {} }
+    acc[country].count++
+
+    if (!acc[country].regions[region]) acc[country].regions[region] = { count: 0, councils: {} }
+    acc[country].regions[region].count++
+
+    acc[country].regions[region].councils[council] = (acc[country].regions[region].councils[council] || 0) + 1
+
+    return acc
+  }, {})
+
+  const countryColors: Record<string, string> = {
+    England: 'text-blue-400',
+    Scotland: 'text-indigo-400',
+    Wales: 'text-red-400',
+    'Northern Ireland': 'text-green-400',
+    Unknown: 'text-slate-400',
+  }
 
   // Compute global stats from agencies
   const stats = {
@@ -169,6 +201,91 @@ export function AdminDashboard() {
             </p>
           </Card>
         </div>
+
+        {/* Geographic Breakdown */}
+        <Card className="bg-slate-800 border-slate-700 p-4 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <MapPin className="w-5 h-5 text-slate-400" />
+            <h3 className="text-lg font-semibold text-white">Registrations by Location</h3>
+          </div>
+
+          {Object.keys(geoStats).length === 0 ? (
+            <p className="text-slate-400 text-center py-6">No registrations yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {Object.entries(geoStats)
+                .sort((a, b) => b[1].count - a[1].count)
+                .map(([country, countryData]) => {
+                  const isCountryOpen = expandedCountry === country
+                  return (
+                    <div key={country} className="rounded-lg border border-slate-700 overflow-hidden">
+                      {/* Country row */}
+                      <button
+                        onClick={() => {
+                          setExpandedCountry(isCountryOpen ? null : country)
+                          setExpandedRegion(null)
+                        }}
+                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-700/50 transition-colors"
+                      >
+                        <span className={`font-semibold text-sm ${countryColors[country] ?? 'text-slate-300'}`}>
+                          {country}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-white font-bold text-sm">{countryData.count}</span>
+                          <span className="text-xs text-slate-500">{countryData.count === 1 ? 'agency' : 'agencies'}</span>
+                          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isCountryOpen ? 'rotate-180' : ''}`} />
+                        </div>
+                      </button>
+
+                      {/* Regions */}
+                      {isCountryOpen && (
+                        <div className="border-t border-slate-700 bg-slate-900/40">
+                          {Object.entries(countryData.regions)
+                            .sort((a, b) => b[1].count - a[1].count)
+                            .map(([region, regionData]) => {
+                              const regionKey = `${country}::${region}`
+                              const isRegionOpen = expandedRegion === regionKey
+                              return (
+                                <div key={region} className="border-b border-slate-700/50 last:border-0">
+                                  {/* Region row */}
+                                  <button
+                                    onClick={() => setExpandedRegion(isRegionOpen ? null : regionKey)}
+                                    className="w-full flex items-center justify-between px-6 py-2.5 hover:bg-slate-700/30 transition-colors"
+                                  >
+                                    <span className="text-sm text-slate-300">{region}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-white text-sm font-semibold">{regionData.count}</span>
+                                      <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isRegionOpen ? 'rotate-180' : ''}`} />
+                                    </div>
+                                  </button>
+
+                                  {/* Councils */}
+                                  {isRegionOpen && (
+                                    <div className="bg-slate-900/60 border-t border-slate-700/50">
+                                      {Object.entries(regionData.councils)
+                                        .sort((a, b) => b[1] - a[1])
+                                        .map(([council, count]) => (
+                                          <div
+                                            key={council}
+                                            className="flex items-center justify-between px-10 py-2 border-b border-slate-700/30 last:border-0"
+                                          >
+                                            <span className="text-xs text-slate-400">{council}</span>
+                                            <span className="text-xs text-white font-medium">{count}</span>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+            </div>
+          )}
+        </Card>
 
         {/* Recent Activity */}
         <Card className="bg-slate-800 border-slate-700 p-4">
