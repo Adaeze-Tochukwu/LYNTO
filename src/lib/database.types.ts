@@ -77,6 +77,13 @@ export interface DbVisitEntry {
   score: number
   risk_level: 'green' | 'amber' | 'red'
   reasons: string[]
+  health_risk_score: number | null
+  risk_band_label: string | null
+  clinical_warning_score: number | null
+  clinical_warning_band: string | null
+  clinical_warning_partial: boolean | null
+  single_red_parameter: boolean | null
+  scoring_engine_version: string | null
   created_at: string
 }
 
@@ -100,6 +107,7 @@ export interface DbAlert {
   reviewed_at: string | null
   action_taken: 'monitor' | 'called_family' | 'informed_gp' | 'community_nurse' | 'emergency_escalation' | null
   manager_note: string | null
+  has_clinical_urgency: boolean | null
   created_at: string
 }
 
@@ -142,4 +150,97 @@ export interface DbAgencyStats {
   total_alerts: number
   unreviewed_alerts: number
   last_activity_at: string | null
+}
+
+// v2 New table types
+export interface DbClientBaseline {
+  id: string
+  client_id: string
+  agency_id: string
+  is_current: boolean
+  date_of_birth: string | null
+  age_group: string | null
+  usual_mobility_level: string | null
+  usual_appetite: string | null
+  usual_fluid_intake: string | null
+  usual_communication_level: string | null
+  usual_cognition_level: string | null
+  usual_mood_behaviour: string | null
+  usual_continence_pattern: string | null
+  usual_gait_pattern: string | null
+  usual_oxygen_saturation: string | null
+  usual_blood_pressure_range: string | null
+  usual_pulse_range: string | null
+  falls_history: string | null
+  medication_support_needs: string | null
+  swallowing_difficulty: boolean
+  catheter_use: boolean
+  pressure_sore_risk: boolean
+  palliative_or_end_of_life_status: boolean
+  baseline_notes: string | null
+  created_by: string
+  created_at: string
+  updated_by: string | null
+  updated_at: string
+  update_reason: string | null
+}
+
+export interface DbClientCondition {
+  id: string
+  client_id: string
+  agency_id: string
+  condition_name: string
+  severity: string
+  notes: string | null
+  status: string
+  added_by: string
+  added_at: string
+  updated_at: string
+}
+
+export interface DbVisitScoreBreakdown {
+  id: string
+  visit_entry_id: string
+  client_id: string
+  agency_id: string
+  base_symptom_score: number
+  vital_sign_score: number
+  baseline_change_score: number
+  condition_adjustment_score: number
+  trend_score: number
+  high_risk_combination_score: number
+  final_health_risk_score: number
+  final_risk_level: string
+  risk_band_label: string
+  category_scores: Record<string, number>
+  score_reasons: string[]
+  baseline_change_reasons: string[]
+  condition_adjustment_reasons: string[]
+  trend_reasons: string[]
+  combination_reasons: string[]
+  explanation_text: string | null
+  suggested_attention_level: string | null
+  clinical_warning_score: number
+  clinical_warning_band: string
+  clinical_warning_partial: boolean
+  single_red_parameter: boolean
+  clinical_parameter_breakdown: Record<string, number>
+  scoring_engine_version: string
+  created_at: string
+}
+
+export interface DbAlertOutcome {
+  id: string
+  alert_id: string
+  visit_entry_id: string
+  client_id: string
+  agency_id: string
+  reviewed_by: string
+  outcome: string | null
+  was_alert_useful: string | null
+  follow_up_required: boolean
+  follow_up_date: string | null
+  outcome_notes: string | null
+  created_at: string
+  updated_at: string
 }

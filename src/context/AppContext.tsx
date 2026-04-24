@@ -20,7 +20,6 @@ import type {
 } from '@/types'
 import { supabase, createFreshClient } from '@/lib/supabase'
 import { useAuth } from './AuthContext'
-import { getSymptomById } from '@/data/symptoms'
 import {
   dbClientToClient,
   dbUserToCarer,
@@ -30,6 +29,15 @@ import {
   vitalsToDb,
 } from '@/lib/converters'
 import type { DbClient, DbUser, DbVisitEntry, DbCorrectionNote, DbAlert, DbCarerClientAssignment } from '@/lib/database.types'
+import { runScoringEngine, SCORING_ENGINE_VERSION } from '@/lib/scoringEngine'
+import type { RecentEntryForTrend } from '@/lib/scoringEngine'
+import {
+  dbClientBaselineToClientBaseline,
+  dbClientConditionToClientCondition,
+  dbVisitScoreBreakdownToScoreBreakdown,
+  dbAlertOutcomeToAlertOutcome,
+} from '@/lib/converters'
+import type { ClientBaseline, ClientCondition, ScoreBreakdown, AlertOutcome, AlertOutcomeValue, AlertUsefulnessFeedback } from '@/types'
 
 interface AppContextType {
   // Data
@@ -88,6 +96,31 @@ interface AppContextType {
 
   // Refresh
   refreshData: () => Promise<void>
+
+  // v2: Baseline
+  fetchClientBaseline: (clientId: string) => Promise<{ current: ClientBaseline | null; history: ClientBaseline[] }>
+  saveClientBaseline: (clientId: string, data: Partial<ClientBaseline>, updateReason?: string) => Promise<ClientBaseline>
+
+  // v2: Conditions
+  fetchClientConditions: (clientId: string) => Promise<ClientCondition[]>
+  addClientCondition: (clientId: string, data: Omit<ClientCondition, 'id' | 'clientId' | 'agencyId' | 'addedBy' | 'addedAt' | 'updatedAt'>) => Promise<ClientCondition>
+  updateClientCondition: (conditionId: string, updates: Partial<Pick<ClientCondition, 'severity' | 'notes' | 'status'>>) => Promise<void>
+
+  // v2: Score breakdown
+  fetchScoreBreakdown: (visitEntryId: string) => Promise<ScoreBreakdown | null>
+
+  // v2: Alert outcomes
+  fetchAlertOutcome: (alertId: string) => Promise<AlertOutcome | null>
+  saveAlertOutcome: (
+    alertId: string,
+    visitEntryId: string,
+    clientId: string,
+    outcome: AlertOutcomeValue | undefined,
+    wasAlertUseful: AlertUsefulnessFeedback | undefined,
+    followUpRequired: boolean,
+    followUpDate: string | undefined,
+    outcomeNotes: string | undefined
+  ) => Promise<void>
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -183,61 +216,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     loadData()
   }, [loadData])
-
-  // Risk calculation (same logic as before)
-  const calculateRisk = (
-    selectedSymptomIds: string[],
-    vitals: Vitals
-  ): { score: number; riskLevel: RiskLevel; reasons: string[] } => {
-    let score = 0
-    const reasons: string[] = []
-
-    for (const symptomId of selectedSymptomIds) {
-      const symptom = getSymptomById(symptomId)
-      if (symptom) {
-        score += symptom.points
-        reasons.push(symptom.label)
-      }
-    }
-
-    if (vitals.temperature !== undefined) {
-      if (vitals.temperature >= 38) {
-        score += 2
-        reasons.push(`High temperature (${vitals.temperature}°C)`)
-      } else if (vitals.temperature < 36) {
-        score += 1
-        reasons.push(`Low temperature (${vitals.temperature}°C)`)
-      }
-    }
-    if (vitals.pulse !== undefined) {
-      if (vitals.pulse > 100 || vitals.pulse < 50) {
-        score += 1
-        reasons.push(`Abnormal pulse (${vitals.pulse} bpm)`)
-      }
-    }
-    if (vitals.oxygenSaturation !== undefined && vitals.oxygenSaturation < 95) {
-      score += 2
-      reasons.push(`Low oxygen saturation (${vitals.oxygenSaturation}%)`)
-    }
-    if (vitals.respiratoryRate !== undefined) {
-      if (vitals.respiratoryRate > 20 || vitals.respiratoryRate < 12) {
-        score += 1
-        reasons.push(`Abnormal respiratory rate (${vitals.respiratoryRate}/min)`)
-      }
-    }
-    if (vitals.systolicBp !== undefined && vitals.diastolicBp !== undefined) {
-      if (vitals.systolicBp > 140 || vitals.systolicBp < 90) {
-        score += 1
-        reasons.push(`Abnormal blood pressure (${vitals.systolicBp}/${vitals.diastolicBp})`)
-      }
-    }
-
-    let riskLevel: RiskLevel = 'green'
-    if (score >= 5) riskLevel = 'red'
-    else if (score >= 3) riskLevel = 'amber'
-
-    return { score, riskLevel, reasons }
-  }
 
   // Client actions
   const addClient = useCallback(
@@ -540,7 +518,60 @@ export function AppProvider({ children }: { children: ReactNode }) {
       vitals: Vitals,
       note: string
     ): Promise<VisitEntry> => {
-      const { score, riskLevel, reasons } = calculateRisk(selectedSymptomIds, vitals)
+      // Fetch baseline, conditions, and recent entries for enhanced scoring
+      const [baselineResult, conditionsResult, recentResult] = await Promise.all([
+        supabase
+          .from('client_baselines')
+          .select('*')
+          .eq('client_id', clientId)
+          .eq('is_current', true)
+          .maybeSingle(),
+        supabase
+          .from('client_conditions')
+          .select('*')
+          .eq('client_id', clientId)
+          .eq('status', 'active'),
+        supabase
+          .from('visit_entries')
+          .select('selected_symptom_ids, vitals, health_risk_score, risk_level, created_at')
+          .eq('client_id', clientId)
+          .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+          .order('created_at', { ascending: false })
+          .limit(20),
+      ])
+
+      const baseline = baselineResult.data
+        ? dbClientBaselineToClientBaseline(baselineResult.data)
+        : null
+
+      const conditions = (conditionsResult.data || []).map(dbClientConditionToClientCondition)
+
+      const recentEntries: RecentEntryForTrend[] = (recentResult.data || []).map((r) => {
+        const v = r.vitals as Record<string, number | undefined>
+        return {
+          selectedSymptomIds: r.selected_symptom_ids || [],
+          vitals: {
+            temperature: v?.temperature,
+            pulse: v?.pulse,
+            systolicBp: v?.systolic_bp ?? v?.systolicBp,
+            diastolicBp: v?.diastolic_bp ?? v?.diastolicBp,
+            oxygenSaturation: v?.oxygen_saturation ?? v?.oxygenSaturation,
+            respiratoryRate: v?.respiratory_rate ?? v?.respiratoryRate,
+          },
+          healthRiskScore: r.health_risk_score ?? null,
+          riskLevel: r.risk_level as RiskLevel,
+          createdAt: r.created_at,
+        }
+      })
+
+      // Run scoring engine
+      const engineResult = runScoringEngine(
+        selectedSymptomIds,
+        vitals,
+        baseline,
+        conditions,
+        recentEntries
+      )
 
       const { data, error } = await supabase
         .from('visit_entries')
@@ -551,9 +582,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
           selected_symptom_ids: selectedSymptomIds,
           vitals: vitalsToDb(vitals),
           note,
-          score,
-          risk_level: riskLevel,
-          reasons,
+          score: engineResult.score,
+          risk_level: engineResult.riskLevel,
+          reasons: engineResult.reasons,
+          health_risk_score: engineResult.finalHealthRiskScore,
+          risk_band_label: engineResult.riskBandLabel,
+          clinical_warning_score: engineResult.clinicalWarningScore,
+          clinical_warning_band: engineResult.clinicalWarningBand,
+          clinical_warning_partial: engineResult.clinicalWarningPartial,
+          single_red_parameter: engineResult.singleRedParameter,
+          scoring_engine_version: SCORING_ENGINE_VERSION,
         })
         .select()
         .single()
@@ -563,8 +601,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const newEntry = dbVisitEntryToVisitEntry(data as DbVisitEntry)
       setVisitEntries((prev) => [newEntry, ...prev])
 
+      // Save score breakdown
+      await supabase.from('visit_score_breakdowns').insert({
+        visit_entry_id: newEntry.id,
+        client_id: clientId,
+        agency_id: agencyId,
+        base_symptom_score: engineResult.baseSymptomScore,
+        vital_sign_score: engineResult.vitalSignScore,
+        baseline_change_score: engineResult.baselineChangeScore,
+        condition_adjustment_score: engineResult.conditionAdjustmentScore,
+        trend_score: engineResult.trendScore,
+        high_risk_combination_score: engineResult.highRiskCombinationScore,
+        final_health_risk_score: engineResult.finalHealthRiskScore,
+        final_risk_level: engineResult.finalRiskLevel,
+        risk_band_label: engineResult.riskBandLabel,
+        category_scores: engineResult.categoryScores,
+        score_reasons: engineResult.reasons,
+        baseline_change_reasons: engineResult.baselineChangeReasons,
+        condition_adjustment_reasons: engineResult.conditionAdjustmentReasons,
+        trend_reasons: engineResult.trendReasons,
+        combination_reasons: engineResult.combinationReasons,
+        explanation_text: engineResult.explanationText,
+        suggested_attention_level: engineResult.suggestedAttentionLevel,
+        clinical_warning_score: engineResult.clinicalWarningScore,
+        clinical_warning_band: engineResult.clinicalWarningBand,
+        clinical_warning_partial: engineResult.clinicalWarningPartial,
+        single_red_parameter: engineResult.singleRedParameter,
+        clinical_parameter_breakdown: engineResult.clinicalParameterBreakdown,
+        scoring_engine_version: SCORING_ENGINE_VERSION,
+      })
+
       // Alert is auto-created by DB trigger, so refresh alerts
-      if (riskLevel === 'amber' || riskLevel === 'red') {
+      if (engineResult.riskLevel === 'amber' || engineResult.riskLevel === 'red') {
         const { data: alertRows } = await supabase
           .from('alerts')
           .select('*')
@@ -576,6 +644,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setAlerts((prev) => [newAlert, ...prev])
         }
       }
+
+      // Attach engine result to the entry for immediate display on result screen
+      ;(newEntry as VisitEntry & { _engineResult: typeof engineResult })._engineResult = engineResult
 
       return newEntry
     },
@@ -699,6 +770,200 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await loadData()
   }, [loadData])
 
+  // ─── v2: Baseline actions ─────────────────────────────────────────────────
+
+  const fetchClientBaseline = useCallback(
+    async (clientId: string): Promise<{ current: ClientBaseline | null; history: ClientBaseline[] }> => {
+      const { data } = await supabase
+        .from('client_baselines')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false })
+
+      if (!data) return { current: null, history: [] }
+      const all = data.map(dbClientBaselineToClientBaseline)
+      return {
+        current: all.find((b) => b.isCurrent) ?? null,
+        history: all.filter((b) => !b.isCurrent),
+      }
+    },
+    []
+  )
+
+  const saveClientBaseline = useCallback(
+    async (clientId: string, formData: Partial<ClientBaseline>, updateReason?: string): Promise<ClientBaseline> => {
+      const agencyId = agency?.id || user?.agencyId
+      if (!agencyId || !user) throw new Error('No agency or user')
+
+      // Mark existing current baseline as not current
+      await supabase
+        .from('client_baselines')
+        .update({ is_current: false })
+        .eq('client_id', clientId)
+        .eq('is_current', true)
+
+      const { data, error } = await supabase
+        .from('client_baselines')
+        .insert({
+          client_id: clientId,
+          agency_id: agencyId,
+          is_current: true,
+          date_of_birth: formData.dateOfBirth || null,
+          age_group: formData.ageGroup || null,
+          usual_mobility_level: formData.usualMobilityLevel || null,
+          usual_appetite: formData.usualAppetite || null,
+          usual_fluid_intake: formData.usualFluidIntake || null,
+          usual_communication_level: formData.usualCommunicationLevel || null,
+          usual_cognition_level: formData.usualCognitionLevel || null,
+          usual_mood_behaviour: formData.usualMoodBehaviour || null,
+          usual_continence_pattern: formData.usualContinencePattern || null,
+          usual_gait_pattern: formData.usualGaitPattern || null,
+          usual_oxygen_saturation: formData.usualOxygenSaturation || null,
+          usual_blood_pressure_range: formData.usualBloodPressureRange || null,
+          usual_pulse_range: formData.usualPulseRange || null,
+          falls_history: formData.fallsHistory || null,
+          medication_support_needs: formData.medicationSupportNeeds || null,
+          swallowing_difficulty: formData.swallowingDifficulty ?? false,
+          catheter_use: formData.catheterUse ?? false,
+          pressure_sore_risk: formData.pressureSoreRisk ?? false,
+          palliative_or_end_of_life_status: formData.palliativeOrEndOfLifeStatus ?? false,
+          baseline_notes: formData.baselineNotes || null,
+          created_by: user.id,
+          updated_by: user.id,
+          update_reason: updateReason || null,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      return dbClientBaselineToClientBaseline(data)
+    },
+    [agency, user]
+  )
+
+  // ─── v2: Condition actions ────────────────────────────────────────────────
+
+  const fetchClientConditions = useCallback(
+    async (clientId: string): Promise<ClientCondition[]> => {
+      const { data } = await supabase
+        .from('client_conditions')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('added_at', { ascending: false })
+
+      return (data || []).map(dbClientConditionToClientCondition)
+    },
+    []
+  )
+
+  const addClientCondition = useCallback(
+    async (
+      clientId: string,
+      conditionData: Omit<ClientCondition, 'id' | 'clientId' | 'agencyId' | 'addedBy' | 'addedAt' | 'updatedAt'>
+    ): Promise<ClientCondition> => {
+      const agencyId = agency?.id || user?.agencyId
+      if (!agencyId || !user) throw new Error('No agency or user')
+
+      const { data, error } = await supabase
+        .from('client_conditions')
+        .insert({
+          client_id: clientId,
+          agency_id: agencyId,
+          condition_name: conditionData.conditionName,
+          severity: conditionData.severity,
+          notes: conditionData.notes || null,
+          status: 'active',
+          added_by: user.id,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      return dbClientConditionToClientCondition(data)
+    },
+    [agency, user]
+  )
+
+  const updateClientCondition = useCallback(
+    async (conditionId: string, updates: Partial<Pick<ClientCondition, 'severity' | 'notes' | 'status'>>): Promise<void> => {
+      const { error } = await supabase
+        .from('client_conditions')
+        .update({
+          severity: updates.severity,
+          notes: updates.notes,
+          status: updates.status,
+        })
+        .eq('id', conditionId)
+
+      if (error) throw error
+    },
+    []
+  )
+
+  // ─── v2: Score breakdown ──────────────────────────────────────────────────
+
+  const fetchScoreBreakdown = useCallback(
+    async (visitEntryId: string): Promise<ScoreBreakdown | null> => {
+      const { data } = await supabase
+        .from('visit_score_breakdowns')
+        .select('*')
+        .eq('visit_entry_id', visitEntryId)
+        .maybeSingle()
+
+      return data ? dbVisitScoreBreakdownToScoreBreakdown(data) : null
+    },
+    []
+  )
+
+  // ─── v2: Alert outcomes ───────────────────────────────────────────────────
+
+  const fetchAlertOutcome = useCallback(
+    async (alertId: string): Promise<AlertOutcome | null> => {
+      const { data } = await supabase
+        .from('alert_outcomes')
+        .select('*')
+        .eq('alert_id', alertId)
+        .maybeSingle()
+
+      return data ? dbAlertOutcomeToAlertOutcome(data) : null
+    },
+    []
+  )
+
+  const saveAlertOutcome = useCallback(
+    async (
+      alertId: string,
+      visitEntryId: string,
+      clientId: string,
+      outcome: AlertOutcomeValue | undefined,
+      wasAlertUseful: AlertUsefulnessFeedback | undefined,
+      followUpRequired: boolean,
+      followUpDate: string | undefined,
+      outcomeNotes: string | undefined
+    ): Promise<void> => {
+      const agencyId = agency?.id || user?.agencyId
+      if (!agencyId || !user) throw new Error('No agency or user')
+
+      // Upsert outcome (one per alert)
+      await supabase.from('alert_outcomes').upsert(
+        {
+          alert_id: alertId,
+          visit_entry_id: visitEntryId,
+          client_id: clientId,
+          agency_id: agencyId,
+          reviewed_by: user.id,
+          outcome: outcome || null,
+          was_alert_useful: wasAlertUseful || null,
+          follow_up_required: followUpRequired,
+          follow_up_date: followUpDate || null,
+          outcome_notes: outcomeNotes || null,
+        },
+        { onConflict: 'alert_id' }
+      )
+    },
+    [agency, user]
+  )
+
   const value: AppContextType = {
     clients,
     carers,
@@ -725,6 +990,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     getAlertById,
     getUnreviewedCount,
     refreshData,
+    fetchClientBaseline,
+    saveClientBaseline,
+    fetchClientConditions,
+    addClientCondition,
+    updateClientCondition,
+    fetchScoreBreakdown,
+    fetchAlertOutcome,
+    saveAlertOutcome,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

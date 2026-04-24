@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { MobileLayout, Header } from '@/components/layout'
 import {
@@ -7,6 +7,9 @@ import {
   VoiceTextInput,
   RiskAlert,
   Modal,
+  ScoreBreakdownCard,
+  WhyThisScore,
+  ClinicalWarningCard,
 } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
 import { useApp } from '@/context/AppContext'
@@ -19,11 +22,12 @@ import {
   AlertTriangle,
   Edit3,
 } from 'lucide-react'
+import type { ScoreBreakdown } from '@/types'
 
 export function EntryDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
-  const { getVisitEntryById, getClientById, getCarerById, addCorrectionNote } = useApp()
+  const { getVisitEntryById, getClientById, getCarerById, addCorrectionNote, fetchScoreBreakdown } = useApp()
 
   const entry = id ? getVisitEntryById(id) : undefined
   const client = entry ? getClientById(entry.clientId) : undefined
@@ -31,6 +35,13 @@ export function EntryDetailPage() {
 
   const [showCorrectionModal, setShowCorrectionModal] = useState(false)
   const [correctionText, setCorrectionText] = useState('')
+  const [scoreBreakdown, setScoreBreakdown] = useState<ScoreBreakdown | null>(null)
+
+  useEffect(() => {
+    if (entry?.id) {
+      fetchScoreBreakdown(entry.id).then(setScoreBreakdown)
+    }
+  }, [entry?.id])
 
   if (!entry) {
     return (
@@ -59,7 +70,40 @@ export function EntryDetailPage() {
     <MobileLayout header={<Header title="Entry Details" showBack />}>
       <div className="space-y-4 pb-6 animate-fade-in">
         {/* Risk Banner */}
-        <RiskAlert level={entry.riskLevel} score={entry.score} />
+        {scoreBreakdown ? (
+          <div className="space-y-4">
+            <Card padding="md">
+              <p className="text-xs text-slate-400 mb-1">LYNTO Health Risk Score™</p>
+              <div className="flex items-center gap-3">
+                <span className="text-3xl font-bold text-slate-800">
+                  {scoreBreakdown.finalHealthRiskScore}
+                  <span className="text-base font-normal text-slate-400">/100</span>
+                </span>
+                <div
+                  className={cn(
+                    'px-3 py-1.5 rounded-xl text-sm font-semibold',
+                    scoreBreakdown.finalRiskLevel === 'red' && 'bg-risk-red-light text-risk-red',
+                    scoreBreakdown.finalRiskLevel === 'amber' && 'bg-risk-amber-light text-amber-800',
+                    scoreBreakdown.finalRiskLevel === 'green' && 'bg-risk-green-light text-green-800'
+                  )}
+                >
+                  {scoreBreakdown.riskBandLabel.split('/')[0].trim()}
+                </div>
+              </div>
+            </Card>
+            <ClinicalWarningCard
+              score={scoreBreakdown.clinicalWarningScore}
+              band={scoreBreakdown.clinicalWarningBand}
+              partial={scoreBreakdown.clinicalWarningPartial}
+              singleRedParameter={scoreBreakdown.singleRedParameter}
+              parameterBreakdown={scoreBreakdown.clinicalParameterBreakdown}
+            />
+            <WhyThisScore breakdown={scoreBreakdown} />
+            <ScoreBreakdownCard breakdown={scoreBreakdown} />
+          </div>
+        ) : (
+          <RiskAlert level={entry.riskLevel} score={entry.score} />
+        )}
 
         {/* Client & Time Info */}
         <Card padding="md">

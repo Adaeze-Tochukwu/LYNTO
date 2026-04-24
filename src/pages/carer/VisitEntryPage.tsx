@@ -9,6 +9,8 @@ import {
   VoiceTextInput,
   Progress,
   RiskAlert,
+  ClinicalWarningCard,
+  WhyThisScore,
 } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
 import { useApp } from '@/context/AppContext'
@@ -16,7 +18,7 @@ import { supabase } from '@/lib/supabase'
 import { symptomCategories } from '@/data/symptoms'
 import { cn } from '@/lib/utils'
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
-import type { Vitals, RiskLevel } from '@/types'
+import type { Vitals, RiskLevel, ScoringEngineResult } from '@/types'
 
 // Define all form steps
 const STEPS = [
@@ -48,6 +50,7 @@ export function VisitEntryPage() {
     score: number
     riskLevel: RiskLevel
     reasons: string[]
+    engineResult?: ScoringEngineResult
   } | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -111,10 +114,12 @@ export function VisitEntryPage() {
         note
       )
       if (entry) {
+        const engineResult = (entry as any)._engineResult as ScoringEngineResult | undefined
         setResult({
           score: entry.score,
           riskLevel: entry.riskLevel,
           reasons: entry.reasons,
+          engineResult,
         })
         handleNext()
 
@@ -145,52 +150,120 @@ export function VisitEntryPage() {
   const renderStepContent = () => {
     // Result screen
     if (result) {
+      const eng = result.engineResult
+      const displayRiskLevel = eng?.finalRiskLevel ?? result.riskLevel
+
       return (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-4 animate-fade-in">
           <div className="text-center">
             <div
               className={cn(
-                'w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center',
-                result.riskLevel === 'green' && 'bg-risk-green-light',
-                result.riskLevel === 'amber' && 'bg-risk-amber-light',
-                result.riskLevel === 'red' && 'bg-risk-red-light'
+                'w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center',
+                displayRiskLevel === 'green' && 'bg-risk-green-light',
+                displayRiskLevel === 'amber' && 'bg-risk-amber-light',
+                displayRiskLevel === 'red' && 'bg-risk-red-light'
               )}
             >
               <Check
                 className={cn(
-                  'w-10 h-10',
-                  result.riskLevel === 'green' && 'text-risk-green',
-                  result.riskLevel === 'amber' && 'text-risk-amber',
-                  result.riskLevel === 'red' && 'text-risk-red'
+                  'w-8 h-8',
+                  displayRiskLevel === 'green' && 'text-risk-green',
+                  displayRiskLevel === 'amber' && 'text-risk-amber',
+                  displayRiskLevel === 'red' && 'text-risk-red'
                 )}
               />
             </div>
-            <h2 className="text-xl font-semibold text-slate-800 mb-2">
-              Entry Saved
-            </h2>
+            <h2 className="text-xl font-semibold text-slate-800">Entry Saved</h2>
           </div>
 
-          <RiskAlert level={result.riskLevel} score={result.score} />
-
-          {result.reasons.length > 0 && (
+          {/* Primary risk display */}
+          {eng ? (
             <Card padding="md">
-              <h3 className="font-semibold text-slate-800 mb-3">
-                Contributing Factors
-              </h3>
+              <p className="text-xs text-slate-400 mb-1">LYNTO Health Risk Score™</p>
+              <div className="flex items-center gap-3">
+                <span className="text-3xl font-bold text-slate-800">
+                  {eng.finalHealthRiskScore}
+                  <span className="text-base font-normal text-slate-400">/100</span>
+                </span>
+                <div
+                  className={cn(
+                    'px-3 py-1.5 rounded-xl text-sm font-semibold',
+                    displayRiskLevel === 'red' && 'bg-risk-red-light text-risk-red',
+                    displayRiskLevel === 'amber' && 'bg-risk-amber-light text-amber-800',
+                    displayRiskLevel === 'green' && 'bg-risk-green-light text-green-800'
+                  )}
+                >
+                  {eng.riskBandLabel.split('/')[0].trim()}
+                </div>
+              </div>
+              {eng.riskBandLabel.includes('/') && (
+                <p className="text-xs text-slate-500 mt-1">{eng.riskBandLabel.split('/')[1]?.trim()}</p>
+              )}
+            </Card>
+          ) : (
+            <RiskAlert level={result.riskLevel} score={result.score} />
+          )}
+
+          {/* Clinical Warning Score */}
+          {eng && (
+            <ClinicalWarningCard
+              score={eng.clinicalWarningScore}
+              band={eng.clinicalWarningBand}
+              partial={eng.clinicalWarningPartial}
+              singleRedParameter={eng.singleRedParameter}
+              parameterBreakdown={eng.clinicalParameterBreakdown}
+            />
+          )}
+
+          {/* Why this score */}
+          {eng && (
+            <WhyThisScore
+              breakdown={{
+                id: '',
+                visitEntryId: '',
+                clientId: '',
+                agencyId: '',
+                baseSymptomScore: eng.baseSymptomScore,
+                vitalSignScore: eng.vitalSignScore,
+                baselineChangeScore: eng.baselineChangeScore,
+                conditionAdjustmentScore: eng.conditionAdjustmentScore,
+                trendScore: eng.trendScore,
+                highRiskCombinationScore: eng.highRiskCombinationScore,
+                finalHealthRiskScore: eng.finalHealthRiskScore,
+                finalRiskLevel: eng.finalRiskLevel,
+                riskBandLabel: eng.riskBandLabel,
+                categoryScores: eng.categoryScores,
+                scoreReasons: eng.reasons,
+                baselineChangeReasons: eng.baselineChangeReasons,
+                conditionAdjustmentReasons: eng.conditionAdjustmentReasons,
+                trendReasons: eng.trendReasons,
+                combinationReasons: eng.combinationReasons,
+                explanationText: eng.explanationText,
+                suggestedAttentionLevel: eng.suggestedAttentionLevel,
+                clinicalWarningScore: eng.clinicalWarningScore,
+                clinicalWarningBand: eng.clinicalWarningBand,
+                clinicalWarningPartial: eng.clinicalWarningPartial,
+                singleRedParameter: eng.singleRedParameter,
+                clinicalParameterBreakdown: eng.clinicalParameterBreakdown,
+                scoringEngineVersion: 'v2_baseline_plus_clinical_warning',
+                createdAt: new Date().toISOString(),
+              }}
+              defaultOpen={displayRiskLevel !== 'green'}
+            />
+          )}
+
+          {/* Legacy reasons fallback */}
+          {!eng && result.reasons.length > 0 && (
+            <Card padding="md">
+              <h3 className="font-semibold text-slate-800 mb-3">Contributing Factors</h3>
               <ul className="space-y-2">
                 {result.reasons.map((reason, index) => (
-                  <li
-                    key={index}
-                    className="flex items-start gap-2 text-sm text-slate-600"
-                  >
-                    <span
-                      className={cn(
-                        'w-2 h-2 rounded-full mt-1.5 flex-shrink-0',
-                        result.riskLevel === 'green' && 'bg-risk-green',
-                        result.riskLevel === 'amber' && 'bg-risk-amber',
-                        result.riskLevel === 'red' && 'bg-risk-red'
-                      )}
-                    />
+                  <li key={index} className="flex items-start gap-2 text-sm text-slate-600">
+                    <span className={cn('w-2 h-2 rounded-full mt-1.5 flex-shrink-0',
+                      result.riskLevel === 'green' && 'bg-risk-green',
+                      result.riskLevel === 'amber' && 'bg-risk-amber',
+                      result.riskLevel === 'red' && 'bg-risk-red'
+                    )} />
                     {reason}
                   </li>
                 ))}
@@ -198,11 +271,10 @@ export function VisitEntryPage() {
             </Card>
           )}
 
-          <Card padding="md" className="bg-slate-50">
-            <p className="text-sm text-slate-600 text-center">
-              Decision support only. Please follow your usual escalation procedures.
-            </p>
-          </Card>
+          <p className="text-xs text-center text-slate-400 px-4">
+            LYNTO supports observation and escalation decisions. It does not diagnose conditions or
+            replace professional clinical judgement.
+          </p>
 
           <Button fullWidth size="lg" onClick={handleDone}>
             Done

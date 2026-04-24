@@ -204,3 +204,120 @@ export function vitalsToDb(vitals: Vitals): Record<string, number | undefined> {
     respiratory_rate: vitals.respiratoryRate,
   }
 }
+
+// ─── v2 Converters ────────────────────────────────────────────────────────────
+
+import type {
+  ClientBaseline,
+  ClientCondition,
+  ScoreBreakdown,
+  AlertOutcome,
+  CategoryScores,
+  ClinicalParameterBreakdown,
+} from '@/types'
+import type {
+  DbClientBaseline,
+  DbClientCondition,
+  DbVisitScoreBreakdown,
+  DbAlertOutcome,
+} from './database.types'
+
+export function dbClientBaselineToClientBaseline(row: DbClientBaseline): ClientBaseline {
+  return {
+    id: row.id,
+    clientId: row.client_id,
+    agencyId: row.agency_id,
+    isCurrent: row.is_current,
+    dateOfBirth: row.date_of_birth || undefined,
+    ageGroup: row.age_group || undefined,
+    usualMobilityLevel: row.usual_mobility_level || undefined,
+    usualAppetite: row.usual_appetite || undefined,
+    usualFluidIntake: row.usual_fluid_intake || undefined,
+    usualCommunicationLevel: row.usual_communication_level || undefined,
+    usualCognitionLevel: row.usual_cognition_level || undefined,
+    usualMoodBehaviour: row.usual_mood_behaviour || undefined,
+    usualContinencePattern: row.usual_continence_pattern || undefined,
+    usualGaitPattern: row.usual_gait_pattern || undefined,
+    usualOxygenSaturation: row.usual_oxygen_saturation || undefined,
+    usualBloodPressureRange: row.usual_blood_pressure_range || undefined,
+    usualPulseRange: row.usual_pulse_range || undefined,
+    fallsHistory: row.falls_history || undefined,
+    medicationSupportNeeds: row.medication_support_needs || undefined,
+    swallowingDifficulty: row.swallowing_difficulty,
+    catheterUse: row.catheter_use,
+    pressureSoreRisk: row.pressure_sore_risk,
+    palliativeOrEndOfLifeStatus: row.palliative_or_end_of_life_status,
+    baselineNotes: row.baseline_notes || undefined,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedBy: row.updated_by || undefined,
+    updatedAt: row.updated_at,
+    updateReason: row.update_reason || undefined,
+  }
+}
+
+export function dbClientConditionToClientCondition(row: DbClientCondition): ClientCondition {
+  return {
+    id: row.id,
+    clientId: row.client_id,
+    agencyId: row.agency_id,
+    conditionName: row.condition_name,
+    severity: row.severity as ClientCondition['severity'],
+    notes: row.notes || undefined,
+    status: row.status as ClientCondition['status'],
+    addedBy: row.added_by,
+    addedAt: row.added_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+export function dbVisitScoreBreakdownToScoreBreakdown(row: DbVisitScoreBreakdown): ScoreBreakdown {
+  return {
+    id: row.id,
+    visitEntryId: row.visit_entry_id,
+    clientId: row.client_id,
+    agencyId: row.agency_id,
+    baseSymptomScore: row.base_symptom_score,
+    vitalSignScore: row.vital_sign_score,
+    baselineChangeScore: row.baseline_change_score,
+    conditionAdjustmentScore: row.condition_adjustment_score,
+    trendScore: row.trend_score,
+    highRiskCombinationScore: row.high_risk_combination_score,
+    finalHealthRiskScore: row.final_health_risk_score,
+    finalRiskLevel: row.final_risk_level as import('@/types').RiskLevel,
+    riskBandLabel: row.risk_band_label,
+    categoryScores: row.category_scores as unknown as CategoryScores,
+    scoreReasons: row.score_reasons || [],
+    baselineChangeReasons: row.baseline_change_reasons || [],
+    conditionAdjustmentReasons: row.condition_adjustment_reasons || [],
+    trendReasons: row.trend_reasons || [],
+    combinationReasons: row.combination_reasons || [],
+    explanationText: row.explanation_text || undefined,
+    suggestedAttentionLevel: row.suggested_attention_level || undefined,
+    clinicalWarningScore: row.clinical_warning_score,
+    clinicalWarningBand: row.clinical_warning_band,
+    clinicalWarningPartial: row.clinical_warning_partial,
+    singleRedParameter: row.single_red_parameter,
+    clinicalParameterBreakdown: row.clinical_parameter_breakdown as ClinicalParameterBreakdown,
+    scoringEngineVersion: row.scoring_engine_version,
+    createdAt: row.created_at,
+  }
+}
+
+export function dbAlertOutcomeToAlertOutcome(row: DbAlertOutcome): AlertOutcome {
+  return {
+    id: row.id,
+    alertId: row.alert_id,
+    visitEntryId: row.visit_entry_id,
+    clientId: row.client_id,
+    agencyId: row.agency_id,
+    reviewedBy: row.reviewed_by,
+    outcome: row.outcome as AlertOutcome['outcome'],
+    wasAlertUseful: row.was_alert_useful as AlertOutcome['wasAlertUseful'],
+    followUpRequired: row.follow_up_required,
+    followUpDate: row.follow_up_date || undefined,
+    outcomeNotes: row.outcome_notes || undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
